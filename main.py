@@ -1,10 +1,10 @@
-# Example file showing a basic pygame "game loop"
 import pygame
 
 # pygame setup
 pygame.init()
 screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 clock = pygame.time.Clock()
+title_screen = pygame.display.set_caption("Space Cowboy")
 running = True
 dt = 0
 
