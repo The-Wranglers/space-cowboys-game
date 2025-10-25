@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Space Cowboys — Login</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Auth0 SPA SDK (CDN) -->
+  <script src="https://cdn.auth0.com/js/auth0-spa-js/1.26.0/auth0-spa-js.production.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>Space Cowboys — Login</h1>
+
+    <div id="content">
+      <p id="status">Not authenticated</p>
+      <div id="error" class="error-message" style="display:none"></div>
+
+      <!-- Local credential fields (UI only). Password is hidden by default. -->
+      <form id="localLoginForm" class="form" onsubmit="event.preventDefault(); handleLocalLogin();">
+        <label class="field">
+          <span>Username</span>
+          <input id="username" type="text" name="username" placeholder="your-username" autocomplete="username">
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <input id="password" type="password" name="password" placeholder="your-password" autocomplete="current-password">
+        </label>
+
+        <label class="checkbox"><input id="showPassword" type="checkbox"> Show password</label>
+
+        <div style="margin-top:10px">
+          <button id="localLogin" type="submit">Use Credentials (demo)</button>
+        </div>
+      </form>
+
+      <div id="buttons">
+        <button id="login">Log In with Auth0</button>
+        <button id="logout" style="display:none">Log Out</button>
+      </div>
+
+      <section id="profile" style="display:none">
+        <h2>Profile</h2>
+        <pre id="profileData"></pre>
+        <p style="font-size:0.9rem;color:rgba(230,238,248,0.7)">Note: For safety the password is never displayed in the profile.</p>
+      </section>
+
+      <div class="back-link">
+        <a href="index.html">← Back to Home</a>
+      </div>
+    </div>
+
+    <footer>
+      <small>Replace AUTH0_DOMAIN and AUTH0_CLIENT_ID in the script below with your Auth0 application values.</small>
+    </footer>
+  </main>
+
+  <script>
+    // TODO: Replace these with your Auth0 application's settings
+    const AUTH0_DOMAIN = "YOUR_AUTH0_DOMAIN"; // e.g. dev-abc123.us.auth0.com
+    const AUTH0_CLIENT_ID = "YOUR_AUTH0_CLIENT_ID"; // e.g. abcDEF1234567890
+
+    // Redirect URI must be allowed in your Auth0 application settings.
+    const REDIRECT_URI = window.location.origin + "/login.html";
+
+    let auth0Client = null;
+
+    function showError(message) {
+      const errorDiv = document.getElementById('error');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000); // Hide after 5 seconds
+    }
+
+    async function initAuth0() {
+      if (AUTH0_DOMAIN.includes("YOUR_AUTH0")) {
+        console.warn("Please replace AUTH0_DOMAIN and AUTH0_CLIENT_ID in login.html with your Auth0 application settings.");
+      }
+
+      try {
+        auth0Client = await createAuth0Client({
+          domain: AUTH0_DOMAIN,
+          client_id: AUTH0_CLIENT_ID,
+          cacheLocation: 'localstorage',
+          useRefreshTokens: true,
+          authorizationParams: {
+            redirect_uri: REDIRECT_URI
+          }
+        });
+
+        // handle redirect callback (if any)
+        if (window.location.search.includes("code=") && window.location.search.includes("state=")) {
+          try {
+            const result = await auth0Client.handleRedirectCallback();
+            console.log('Redirect callback handled', result);
+            // remove query params from URL
+            window.history.replaceState({}, document.title, REDIRECT_URI);
+          } catch (err) {
+            console.error('Error handling redirect callback:', err);
+            showError('Login failed: ' + (err.error_description || err.message || 'Unknown error'));
+          }
+        }
+
+        updateUI();
+      } catch (err) {
+        console.error('Auth0 initialization error:', err);
+        showError('Failed to initialize login: ' + (err.error_description || err.message || 'Unknown error'));
+      }
+    }
+
+    async function updateUI() {
+      const isAuthenticated = await auth0Client.isAuthenticated();
+      const status = document.getElementById('status');
+      const loginBtn = document.getElementById('login');
+      const logoutBtn = document.getElementById('logout');
+      const profileSection = document.getElementById('profile');
+      const profileData = document.getElementById('profileData');
+
+      if (isAuthenticated) {
+        status.textContent = 'Authenticated';
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+        profileSection.style.display = 'block';
+
+        try {
+          const user = await auth0Client.getUser();
+          profileData.textContent = JSON.stringify(user, null, 2);
+        } catch (err) {
+          showError('Failed to get user profile: ' + (err.error_description || err.message || 'Unknown error'));
+        }
+      } else {
+        status.textContent = 'Not authenticated';
+        loginBtn.style.display = 'inline-block';
+        logoutBtn.style.display = 'none';
+        profileSection.style.display = 'none';
+        profileData.textContent = '';
+      }
+    }
+
+    document.getElementById('login').addEventListener('click', async () => {
+      try {
+        // Use redirect-based login (simple for static sites)
+        await auth0Client.loginWithRedirect({
+          authorizationParams: {
+            redirect_uri: REDIRECT_URI
+          }
+        });
+      } catch (err) {
+        showError('Login failed: ' + (err.error_description || err.message || 'Unknown error'));
+      }
+    });
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      try {
+        await auth0Client.logout({
+          logoutParams: { returnTo: window.location.origin }
+        });
+        updateUI();
+      } catch (err) {
+        showError('Logout failed: ' + (err.error_description || err.message || 'Unknown error'));
+      }
+    });
+
+    // Show/hide password toggle
+    const showPasswordCheckbox = document.getElementById('showPassword');
+    const passwordInput = document.getElementById('password');
+    if (showPasswordCheckbox && passwordInput) {
+      showPasswordCheckbox.addEventListener('change', (e) => {
+        passwordInput.type = e.target.checked ? 'text' : 'password';
+      });
+    }
+
+    // Handle the local/demo credential form — this is UI-only and does NOT authenticate with Auth0.
+    function handleLocalLogin() {
+      const username = document.getElementById('username')?.value || '';
+      if (!username) {
+        showError('Please enter a username');
+        return;
+      }
+      // intentionally do not show the password in the profile for safety
+      const profileData = { demoUsername: username };
+      document.getElementById('profileData').textContent = JSON.stringify(profileData, null, 2);
+      document.getElementById('profile').style.display = 'block';
+      document.getElementById('status').textContent = 'Demo credentials shown (not authenticated)';
+    }
+
+    // init
+    window.addEventListener('load', () => {
+      initAuth0().catch(err => {
+        console.error('Auth0 init error', err);
+        showError('Failed to initialize login system');
+      });
+    });
+  </script>
+</body>
+</html>

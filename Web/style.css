@@ -1,0 +1,49 @@
+:root{
+  --bg:#0b0f1a;
+  --card:#0f1724;
+  --accent:#ffd166;
+  --text:#e6eef8;
+  --error:#ff4d4f;
+  --success:#52c41a;
+}
+
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter, UI-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;background:linear-gradient(180deg,var(--bg),#071122);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{width:min(780px,94vw);background:rgba(255,255,255,0.03);padding:28px;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+
+/* Landing page styles */
+.landing{text-align:center}
+.tagline{font-size:1.2rem;margin:1rem 0 2rem;opacity:0.9}
+.hero-buttons{display:flex;gap:1rem;justify-content:center;margin:2rem 0}
+.button{text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;transition:transform 0.1s,opacity 0.1s}
+.button:hover{transform:translateY(-1px);opacity:0.9}
+.button.primary{background:var(--accent);color:var(--bg)}
+.button.secondary{background:rgba(255,255,255,0.1);color:var(--text)}
+.about-section{margin-top:3rem;padding-top:2rem;border-top:1px solid rgba(255,255,255,0.1)}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:2rem;margin-top:2rem;text-align:left}
+.feature h3{margin:0 0 0.5rem;display:flex;align-items:center;gap:0.5rem}
+.feature p{margin:0;opacity:0.8}
+
+/* Login page styles */
+h1{margin:0 0 14px 0}
+#buttons{margin:18px 0}
+button{background:var(--accent);border:0;padding:10px 16px;border-radius:8px;color:#0b0f1a;font-weight:600;cursor:pointer}
+pre{background:rgba(0,0,0,0.25);padding:12px;border-radius:8px;overflow:auto}
+footer{margin-top:18px;color:rgba(230,238,248,0.6)}
+
+/* Error message */
+.error-message{background:rgba(255,77,79,0.1);border:1px solid var(--error);color:var(--error);padding:12px;border-radius:8px;margin:12px 0;animation:fadeIn 0.3s ease-out}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Back link */
+.back-link{margin-top:2rem}
+.back-link a{color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem}
+.back-link a:hover{text-decoration:underline}
+
+.form{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.field{display:flex;flex-direction:column}
+.field span{font-size:0.85rem;color:rgba(230,238,248,0.7);margin-bottom:6px}
+.field input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:var(--text)}
+.checkbox{display:inline-flex;align-items:center;gap:8px;color:rgba(230,238,248,0.8);font-size:0.9rem}
+.checkbox input{width:16px;height:16px}
+.form button{width:max-content;padding:8px 12px}
