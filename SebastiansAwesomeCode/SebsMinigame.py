@@ -58,10 +58,20 @@ for direction in ['w', 'a', 's', 'd']:
     try:
         background_img_path = f"{project_root}assets/images/marsBackground.jpg"
         dead_image_path = f"{project_root}assets/images/deadBara.png"
+        enemy_image_path = f"{project_root}assets/images/octopusNormal.png"
+        damaged_enemy_image_path = f"{project_root}assets/images/octopusDamaged.png"
         img_path = f"{project_root}assets/images/{direction}Capy.png"
         player_images[direction] = pygame.image.load(img_path)
     except Exception as e:
         print(f"Failed to load player image {direction}Capy.png: {e}", file=sys.stderr)
+    try:
+        damaged_enemy_image = pygame.image.load(damaged_enemy_image_path)
+    except Exception as e:
+        print(f"Failed to load octopusDamaged.png: {e}", file=sys.stderr)
+    try:
+        enemy_image = pygame.image.load(enemy_image_path)
+    except Exception as e:
+        print(f"Failed to load octopusNormal.png: {e}", file=sys.stderr)
     try:
         dead_image = pygame.image.load(dead_image_path)
     except Exception as e:
@@ -240,9 +250,11 @@ while running:
     # Draw player character using current image
     screen.blit(current_player_image, player_rect)
     if target_alive:
-        pygame.draw.circle(screen, "green", (int(Xtarget), int(Ytarget)), 50)
+        enemy_rect = enemy_image.get_rect(center=(Xtarget, Ytarget))
+        screen.blit(enemy_image, enemy_rect)
     else:
-        pygame.draw.circle(screen, "red", (int(Xtarget), int(Ytarget)), 50)
+        damaged_enemy_rect = damaged_enemy_image.get_rect(center=(Xtarget, Ytarget))
+        screen.blit(damaged_enemy_image, damaged_enemy_rect)
 
     # Player bullets
     node = stack.top
