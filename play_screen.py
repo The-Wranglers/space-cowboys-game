@@ -29,12 +29,23 @@ class PlayScreen:
         # clickable 'planets' as circle hitboxes.
         # YOU will tune these numbers to match where the planets are drawn.
         # pos: (x, y), radius: int, id: string
+        # The values below are treated as positions/radii in the background image's pixel space
+        # and will be converted to relative ratios so resizing preserves layout.
         self.planets = [
             {"pos": (92, 75), "radius": 60, "id": "planet1"},
             {"pos": (475, 330), "radius": 55, "id": "planet2"},
             {"pos": (865, 160), "radius": 45, "id": "planet3"},
             {"pos": (1145, 355), "radius": 85, "id": "planet4"},
         ]
+
+        # store normalized ratios based on the background image size so we can
+        # recompute absolute positions when the window resizes
+        self._bg_size = self.bg_raw.get_size()  # (width, height)
+        self._compute_normalized_planets()
+
+        # cached absolute planet positions for current window size
+        self._last_screen_size = None
+        self._planets_abs = None
 
     def _wrap_text(self, text, max_width):
         """Wrap dialog_text into multiple lines so it fits in the box."""
@@ -96,10 +107,14 @@ class PlayScreen:
         - Hover: brighter/yellowish, thicker
         - Click: triggers action (right now print + optional scene switch)
         """
+        # ensure absolute positions are up-to-date for current screen size
+        if self._last_screen_size != (screen.get_width(), screen.get_height()):
+            self._recalc_planets_for_screen(screen)
+
         mouse_pos = pygame.mouse.get_pos()
         mouse_click = pygame.mouse.get_pressed()[0]
 
-        for planet in self.planets:
+        for planet in self._planets_abs:
             x, y = planet["pos"]
             r = planet["radius"]
 
@@ -129,6 +144,38 @@ class PlayScreen:
                     adventure.run(DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame)
                 elif planet_id == "planet2" and self.game_state_callback:
                     self.game_state_callback("sheriff_level")
+
+    def _compute_normalized_planets(self):
+        """Compute normalized ratios (x_ratio, y_ratio, radius_ratio) from image-space planets."""
+        bw, bh = self._bg_size
+        self._planets_norm = []
+        # radius normalized relative to shorter side so it scales well
+        base_dim = min(bw, bh) if min(bw, bh) > 0 else max(bw, bh)
+        for p in self.planets:
+            x, y = p["pos"]
+            r = p["radius"]
+            x_ratio = x / bw if bw else 0.5
+            y_ratio = y / bh if bh else 0.5
+            r_ratio = r / base_dim if base_dim else 0.05
+            self._planets_norm.append({
+                "id": p.get("id"),
+                "x_ratio": x_ratio,
+                "y_ratio": y_ratio,
+                "r_ratio": r_ratio,
+            })
+
+    def _recalc_planets_for_screen(self, screen):
+        """Recalculate absolute planet positions from normalized ratios for current screen size."""
+        sw, sh = screen.get_width(), screen.get_height()
+        base_dim = min(sw, sh) if min(sw, sh) > 0 else max(sw, sh)
+        abs_list = []
+        for p in self._planets_norm:
+            x = int(p["x_ratio"] * sw)
+            y = int(p["y_ratio"] * sh)
+            r = max(4, int(p["r_ratio"] * base_dim))
+            abs_list.append({"id": p["id"], "pos": (x, y), "radius": r})
+        self._planets_abs = abs_list
+        self._last_screen_size = (sw, sh)
 
     def draw(self, screen):
         """

@@ -85,7 +85,11 @@ if not current_player_image:  # Fallback if image loading failed
     current_player_image = pygame.Surface((100, 100))  # Create a placeholder surface
     current_player_image.fill("brown")
 
-cowboy_pos = [100, 100]
+from utils.ui_scaling import normalize_point, denormalize_point, normalize_radius, denormalize_radius
+
+# Store normalized coordinates (0-1 range)
+norm_cowboy_pos = [100/1280, 100/720]  # Initial position normalized to default window size
+cowboy_pos = [int(norm_cowboy_pos[0] * screen.get_width()), int(norm_cowboy_pos[1] * screen.get_height())]
 player_rect = current_player_image.get_rect(center=cowboy_pos)
 stack = LinkedListStack()       # Player bullets
 enemy_stack = LinkedListStack() # Enemy bullets
@@ -102,9 +106,11 @@ playerDead = False
 displayDead = False
 freeze = False
 count = 0
-# Spawn first target (enemy)
-Xtarget = (screen.get_width() - 100)
-Ytarget = (screen.get_height() - 100)
+# Spawn first target (enemy) using normalized coordinates
+norm_Xtarget = 0.9  # 90% of screen width
+norm_Ytarget = 0.9  # 90% of screen height
+Xtarget = int(norm_Xtarget * screen.get_width())
+Ytarget = int(norm_Ytarget * screen.get_height())
 
 # Enemy dodge direction control
 dodge_timer = 0
@@ -119,7 +125,15 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
+            
+            if event.type == pygame.VIDEORESIZE:
+                screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                # Update positions based on new screen size
+                cowboy_pos[0] = int(norm_cowboy_pos[0] * screen.get_width())
+                cowboy_pos[1] = int(norm_cowboy_pos[1] * screen.get_height())
+                Xtarget = int(norm_Xtarget * screen.get_width())
+                Ytarget = int(norm_Ytarget * screen.get_height())
+            
         # Left click to shoot
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_x, mouse_y = event.pos
@@ -135,27 +149,31 @@ while running:
     keys = pygame.key.get_pressed()
     moved = False
     if keys[pygame.K_w]:
-        cowboy_pos[1] -= player_speed * dt
+        norm_cowboy_pos[1] -= (player_speed * dt) / screen.get_height()
         current_player_image = player_images.get('w', current_player_image)
         moved = True
     if keys[pygame.K_s]:
-        cowboy_pos[1] += player_speed * dt
+        norm_cowboy_pos[1] += (player_speed * dt) / screen.get_height()
         current_player_image = player_images.get('s', current_player_image)
         moved = True
     if keys[pygame.K_a]:
-        cowboy_pos[0] -= player_speed * dt
+        norm_cowboy_pos[0] -= (player_speed * dt) / screen.get_width()
         current_player_image = player_images.get('a', current_player_image)
         moved = True
     if keys[pygame.K_d]:
-        cowboy_pos[0] += player_speed * dt
+        norm_cowboy_pos[0] += (player_speed * dt) / screen.get_width()
         current_player_image = player_images.get('d', current_player_image)
         moved = True
     if keys[pygame.K_q] and playerDead:
         running = False
 
-    # ✅ Keep player inside screen
-    cowboy_pos[0] = max(50, min(screen.get_width() - 50, cowboy_pos[0]))
-    cowboy_pos[1] = max(50, min(screen.get_height() - 50, cowboy_pos[1]))
+    # ✅ Keep player inside screen (in normalized coordinates)
+    norm_cowboy_pos[0] = max(0.05, min(0.95, norm_cowboy_pos[0]))
+    norm_cowboy_pos[1] = max(0.05, min(0.95, norm_cowboy_pos[1]))
+    
+    # Convert normalized coordinates to screen coordinates
+    cowboy_pos[0] = int(norm_cowboy_pos[0] * screen.get_width())
+    cowboy_pos[1] = int(norm_cowboy_pos[1] * screen.get_height())
     
     # Update player rectangle position
     player_rect.center = cowboy_pos
@@ -187,13 +205,21 @@ while running:
         move_x /= move_dist
         move_y /= move_dist
 
-    # Update enemy position
-    Xtarget += move_x * enemy_speed * dt
-    Ytarget += move_y * enemy_speed * dt
+    # Update enemy position using screen-relative speed
+    Xtarget += move_x * (enemy_speed * dt)
+    Ytarget += move_y * (enemy_speed * dt)
 
-    # Keep within screen
-    Xtarget = max(50, min(screen.get_width() - 50, Xtarget))
-    Ytarget = max(50, min(screen.get_height() - 50, Ytarget))
+    # Convert absolute position to normalized
+    norm_Xtarget = Xtarget / screen.get_width()
+    norm_Ytarget = Ytarget / screen.get_height()
+    
+    # Keep within screen bounds in normalized coordinates
+    norm_Xtarget = max(0.05, min(0.95, norm_Xtarget))
+    norm_Ytarget = max(0.05, min(0.95, norm_Ytarget))
+    
+    # Convert back to screen coordinates
+    Xtarget = int(norm_Xtarget * screen.get_width())
+    Ytarget = int(norm_Ytarget * screen.get_height())
 
     # AI shooting
     if shoot_cooldown >= 1.0:  # Fire every second
@@ -228,12 +254,16 @@ while running:
             playerDead = True
         node = node.next
 
-    # Respawn target if killedd
+    # Respawn target if killed
     if target_killed:
         counter += dt
         if counter >= 0.5:
-            Xtarget = random.randint(100, screen.get_width() - 100)
-            Ytarget = random.randint(100, screen.get_height() - 100)
+            # Generate normalized random position
+            norm_Xtarget = random.uniform(0.1, 0.9)
+            norm_Ytarget = random.uniform(0.1, 0.9)
+            # Convert to screen coordinates
+            Xtarget = int(norm_Xtarget * screen.get_width())
+            Ytarget = int(norm_Ytarget * screen.get_height())
             target_alive = True
             target_killed = False
             counter = 0
@@ -256,16 +286,17 @@ while running:
         damaged_enemy_rect = damaged_enemy_image.get_rect(center=(Xtarget, Ytarget))
         screen.blit(damaged_enemy_image, damaged_enemy_rect)
 
-    # Player bullets
+    # Draw player bullets with relative size
+    bullet_radius = denormalize_radius(0.01, screen.get_width(), screen.get_height())  # 1% of screen size
     node = stack.top
     while node:
-        pygame.draw.circle(screen, "yellow", (int(node.x), int(node.y)), 8)
+        pygame.draw.circle(screen, "yellow", (int(node.x), int(node.y)), int(bullet_radius))
         node = node.next
 
-    # Enemy bullets
+    # Enemy bullets with relative size
     node = enemy_stack.top
     while node:
-        pygame.draw.circle(screen, "red", (int(node.x), int(node.y)), 8)
+        pygame.draw.circle(screen, "red", (int(node.x), int(node.y)), int(bullet_radius))
         node = node.next
     if not freeze:
         pygame.display.flip()

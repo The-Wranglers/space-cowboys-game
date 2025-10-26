@@ -419,6 +419,15 @@ def main():
         {"id": "enc2", "pos": pygame.Vector2(screen.get_width() * 0.5, screen.get_height() * 0.8), "type": "dialogue", "character": "Lost Robot"},
     ]
 
+    # Normalize encounter positions (store _pos_norm) and ensure absolute positions are set for current screen
+    try:
+        from utils.ui_scaling import get_ref_size, set_encounters_normalized, recalc_encounter_positions
+        encounter_ref_size = get_ref_size(bg_image, screen)
+        set_encounters_normalized(encounter_points, encounter_ref_size)
+        recalc_encounter_positions(encounter_points, screen, encounter_ref_size)
+    except Exception:
+        encounter_ref_size = (screen.get_width(), screen.get_height())
+
     # Load profile choices and mark encounters done if present
     for k in profile.choices().keys():
         try:
@@ -446,6 +455,12 @@ def main():
                 running = False
             elif event.type == pygame.VIDEORESIZE:
                 screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                # Recalculate encounter positions for new window size
+                try:
+                    from utils.ui_scaling import recalc_encounter_positions
+                    recalc_encounter_positions(encounter_points, screen, encounter_ref_size)
+                except Exception:
+                    pass
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     menu_active = not menu_active

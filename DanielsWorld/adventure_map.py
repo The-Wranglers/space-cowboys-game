@@ -58,6 +58,18 @@ class AdventureMap:
                 self.encounter_points = self.default_encounters()
                 self._encounter_source = 'default_encounters'
 
+        # Normalize encounter positions to a reference size (bg image if available, else current screen)
+        try:
+            from utils.ui_scaling import get_ref_size, set_encounters_normalized, recalc_encounter_positions
+            ref_size = get_ref_size(self.bg_image, self.screen)
+            set_encounters_normalized(self.encounter_points, ref_size)
+            # ensure absolute positions are set for current screen
+            recalc_encounter_positions(self.encounter_points, self.screen, ref_size)
+            self._encounter_ref_size = ref_size
+        except Exception:
+            # fallback — leave encounters as-is
+            self._encounter_ref_size = (self.screen.get_width(), self.screen.get_height())
+
         # Log which source produced the encounter points and enumerate them for debugging
         try:
             logger.info("Encounter generator source: %s", getattr(self, '_encounter_source', 'unknown'))
@@ -125,6 +137,12 @@ class AdventureMap:
                     running = False
                 elif event.type == pygame.VIDEORESIZE:
                     self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                    # Recalculate encounter positions for new window size
+                    try:
+                        from utils.ui_scaling import recalc_encounter_positions
+                        recalc_encounter_positions(self.encounter_points, self.screen, getattr(self, '_encounter_ref_size', (self.screen.get_width(), self.screen.get_height())))
+                    except Exception:
+                        pass
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         menu_active = True
