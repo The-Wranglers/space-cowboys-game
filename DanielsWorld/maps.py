@@ -127,7 +127,24 @@ except Exception as e:
     print(f"Failed to load background image: {e}", file=sys.stderr)
     bg_image = None
 
+# Load player character images
+player_images = {}
+for direction in ['w', 'a', 's', 'd']:
+    try:
+        img_path = project_root / "assets" / "images" / f"{direction}Capy.png"
+        player_images[direction] = pygame.image.load(str(img_path))
+    except Exception as e:
+        print(f"Failed to load player image {direction}Capy.png: {e}", file=sys.stderr)
+
+# Default player image (facing left)
+current_player_image = player_images.get('a')  # aCapy.png is the default
+if not current_player_image:  # Fallback if image loading failed
+    print("Failed to load default player image, using placeholder", file=sys.stderr)
+    current_player_image = pygame.Surface((80, 80))  # Create a placeholder surface
+    current_player_image.fill("red")
+
 player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
+player_rect = current_player_image.get_rect(center=player_pos)
 
 import random
 from player_profile import PlayerProfile
@@ -200,77 +217,129 @@ while running:
         elif event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_j:
-                # Start pairing helper: spawn a local HTTP server and open the browser to pair.html
-                def start_pairing():
-                    # choose a free port by binding a temporary socket
-                    import socket
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.bind(("127.0.0.1", 0))
-                    port = s.getsockname()[1]
-                    s.close()
-                    token = os.urandom(8).hex()
+            if event.key == pygame.K_ESCAPE:
+                # Show menu
+                menu_active = True
+                menu_selection = 0
+                menu_options = ["Continue", "Reset Progress", "Link Online Account"]
+                
+                # Menu loop
+                while menu_active and running:
+                    for menu_event in pygame.event.get():
+                        if menu_event.type == pygame.QUIT:
+                            menu_active = False
+                            running = False
+                        elif menu_event.type == pygame.KEYDOWN:
+                            if menu_event.key == pygame.K_ESCAPE:
+                                menu_active = False
+                            elif menu_event.key == pygame.K_UP:
+                                menu_selection = (menu_selection - 1) % len(menu_options)
+                            elif menu_event.key == pygame.K_DOWN:
+                                menu_selection = (menu_selection + 1) % len(menu_options)
+                            elif menu_event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                                if menu_selection == 0:  # Continue
+                                    menu_active = False
+                                elif menu_selection == 1:  # Reset Progress
+                                    # Clear profile data
+                                    profile.clear()
+                                    # Reset encounter states
+                                    dm.encounter_states = {}
+                                    menu_active = False
+                                elif menu_selection == 2:  # Link Online Account
+                                    # Start pairing helper: spawn a local HTTP server and open the browser to pair.html
+                                    def start_pairing():
+                                        # choose a free port by binding a temporary socket
+                                        import socket
+                                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                        s.bind(("127.0.0.1", 0))
+                                        port = s.getsockname()[1]
+                                        s.close()
+                                        token = os.urandom(8).hex()
+                                        
+                                        class PairHandler(http.server.BaseHTTPRequestHandler):
+                                            server_token = token
+                                            
+                                            def _set_cors(self):
+                                                self.send_header('Access-Control-Allow-Origin', '*')
+                                                self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                                                self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+                                            
+                                            def do_OPTIONS(self):
+                                                self.send_response(200)
+                                                self._set_cors()
+                                                self.end_headers()
+                                            
+                                            def do_POST(self):
+                                                if self.path != '/pair':
+                                                    self.send_response(404)
+                                                    self.end_headers()
+                                                    return
+                                                length = int(self.headers.get('Content-Length', 0))
+                                                raw = self.rfile.read(length).decode('utf-8')
+                                                try:
+                                                    data = json.loads(raw)
+                                                    if data.get('token') != self.server_token:
+                                                        self.send_response(403)
+                                                        self._set_cors()
+                                                        self.end_headers()
+                                                        return
+                                                    profile_data = data.get('profile')
+                                                    # Save linked account to player profile
+                                                    try:
+                                                        profile.set_account(profile_data)
+                                                    except Exception:
+                                                        pass
+                                                    self.send_response(200)
+                                                    self._set_cors()
+                                                    self.end_headers()
+                                                    # stop server after handling
+                                                    def stop_server():
+                                                        httpd.shutdown()
+                                                    threading.Thread(target=stop_server, daemon=True).start()
+                                                except Exception:
+                                                    self.send_response(400)
+                                                    self._set_cors()
+                                                    self.end_headers()
+                                    
+                                        # start server
+                                        httpd = socketserver.TCPServer(("127.0.0.1", port), PairHandler)
+                                        # open browser to the pairing page on the web server (assumes Web/ served at :8000)
+                                        pair_url = f"http://localhost:8000/pair.html?token={token}&port={port}"
+                                        try:
+                                            webbrowser.open(pair_url)
+                                        except Exception:
+                                            pass
+                                        # serve until pairing completes or timeout
+                                        try:
+                                            httpd.serve_forever()
+                                        except Exception:
+                                            pass
+                                    
+                                    threading.Thread(target=start_pairing, daemon=True).start()
+                                    menu_active = False
 
-                    class PairHandler(http.server.BaseHTTPRequestHandler):
-                        server_token = token
+                    # Draw darkened background
+                    dark_overlay = pygame.Surface((screen.get_width(), screen.get_height()))
+                    dark_overlay.fill((0, 0, 0))
+                    dark_overlay.set_alpha(128)
+                    screen.blit(dark_overlay, (0, 0))
 
-                        def _set_cors(self):
-                            self.send_header('Access-Control-Allow-Origin', '*')
-                            self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-                            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+                    # Draw menu
+                    menu_font = pygame.font.SysFont(None, 36)
+                    menu_title = menu_font.render("Menu", True, (255, 255, 0))
+                    title_rect = menu_title.get_rect(centerx=screen.get_width() // 2, top=screen.get_height() // 3)
+                    screen.blit(menu_title, title_rect)
 
-                        def do_OPTIONS(self):
-                            self.send_response(200)
-                            self._set_cors()
-                            self.end_headers()
+                    for i, option in enumerate(menu_options):
+                        color = (255, 255, 0) if i == menu_selection else (200, 200, 200)
+                        text = menu_font.render(option, True, color)
+                        text_rect = text.get_rect(centerx=screen.get_width() // 2, 
+                                                top=title_rect.bottom + 40 + i * 40)
+                        if i == menu_selection:
+                            pygame.draw.rect(screen, color, text_rect.inflate(20, 5), 1)
+                        screen.blit(text, text_rect)
 
-                        def do_POST(self):
-                            if self.path != '/pair':
-                                self.send_response(404)
-                                self.end_headers()
-                                return
-                            length = int(self.headers.get('Content-Length', 0))
-                            raw = self.rfile.read(length).decode('utf-8')
-                            try:
-                                data = json.loads(raw)
-                                if data.get('token') != self.server_token:
-                                    self.send_response(403)
-                                    self._set_cors()
-                                    self.end_headers()
-                                    return
-                                profile_data = data.get('profile')
-                                # Save linked account to player profile
-                                try:
-                                    profile.set_account(profile_data)
-                                except Exception:
-                                    pass
-                                self.send_response(200)
-                                self._set_cors()
-                                self.end_headers()
-                                # stop server after handling
-                                def stop_server():
-                                    httpd.shutdown()
-                                threading.Thread(target=stop_server, daemon=True).start()
-                            except Exception:
-                                self.send_response(400)
-                                self._set_cors()
-                                self.end_headers()
-
-                    # start server
-                    httpd = socketserver.TCPServer(("127.0.0.1", port), PairHandler)
-                    # open browser to the pairing page on the web server (assumes Web/ served at :8000)
-                    pair_url = f"http://localhost:8000/pair.html?token={token}&port={port}"
-                    try:
-                        webbrowser.open(pair_url)
-                    except Exception:
-                        pass
-                    # serve until pairing completes or timeout
-                    try:
-                        httpd.serve_forever()
-                    except Exception:
-                        pass
-
-                threading.Thread(target=start_pairing, daemon=True).start()
+                    pygame.display.flip()
 
     # draw background
     if bg_image:
@@ -282,8 +351,20 @@ while running:
     else:
         screen.fill("black")
 
+    # Update player image based on movement
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_w]:
+        current_player_image = player_images.get('w', current_player_image)
+    elif keys[pygame.K_s]:
+        current_player_image = player_images.get('s', current_player_image)
+    elif keys[pygame.K_a]:
+        current_player_image = player_images.get('a', current_player_image)
+    elif keys[pygame.K_d]:
+        current_player_image = player_images.get('d', current_player_image)
+
     # Draw player
-    pygame.draw.circle(screen, "red", player_pos, 40)
+    player_rect = current_player_image.get_rect(center=player_pos)
+    screen.blit(current_player_image, player_rect)
 
     # Draw encounter points
     for idx, enc in enumerate(encounter_points):
