@@ -34,7 +34,20 @@
         <p id="notSignedIn" style="color:var(--accent)">You are not signed in. <a href="login.html" style="color:var(--bg);background:var(--accent);padding:6px 10px;border-radius:6px;text-decoration:none">Sign in</a></p>
         <section id="profileCard" style="display:none">
           <h2 id="profileTitle">Profile</h2>
+          <div id="gameProfileStatus"></div>
           <pre id="profileJson"></pre>
+          <div id="connectionInstructions" style="display:none;margin-top:20px;padding:20px;background:var(--bg-alt);border-radius:8px">
+            <h3>Connect Your Game Profile</h3>
+            <p>To connect your game profile to your online account:</p>
+            <ol>
+              <li>Launch the Space Cowboys game</li>
+              <li>Press ESC to open the menu</li>
+              <li>Click on "Profile"</li>
+              <li>Click "Link Online Account"</li>
+              <li>Enter your account ID: <span id="accountId" style="background:var(--bg);padding:2px 6px;border-radius:4px"></span></li>
+            </ol>
+            <p>Your game progress and choices will then be synced with your online profile!</p>
+          </div>
           <div style="margin-top:12px;display:flex;gap:8px">
             <button id="signOutBtn" class="button">Sign out</button>
             <button id="clearLocalBtn" class="button secondary">Clear local session</button>
@@ -53,6 +66,9 @@
         const profileCard = document.getElementById('profileCard');
         const notSigned = document.getElementById('notSignedIn');
         const profileJson = document.getElementById('profileJson');
+        const gameProfileStatus = document.getElementById('gameProfileStatus');
+        const connectionInstructions = document.getElementById('connectionInstructions');
+        const accountId = document.getElementById('accountId');
 
         function refreshNav() {
           const a = document.getElementById('navAccount');
@@ -62,21 +78,61 @@
           else { a.textContent = 'Login'; a.href = 'login.html'; }
         }
 
-        if (profileRaw) {
-          const parsed = JSON.parse(profileRaw);
-          profileJson.textContent = JSON.stringify(parsed, null, 2);
+        function checkGameProfile() {
+          // Try to fetch the game profile data
+          fetch('/data/player_profile.json')
+            .then(response => {
+              if (response.ok) {
+                return response.json();
+              }
+              throw new Error('No game profile found');
+            })
+            .then(gameData => {
+              if (gameData.account && gameData.account.id === id) {
+                gameProfileStatus.innerHTML = '<div style="color:var(--success);margin:10px 0;"><span style="background:var(--success);color:var(--bg);padding:4px 8px;border-radius:4px;">✓ Game Profile Connected</span></div>';
+                connectionInstructions.style.display = 'none';
+                
+                // Show combined profile data
+                const combinedData = {
+                  ...JSON.parse(profileRaw || '{}'),
+                  gameProfile: {
+                    choices: gameData.choices,
+                    flags: gameData.flags
+                  }
+                };
+                profileJson.textContent = JSON.stringify(combinedData, null, 2);
+              } else {
+                throw new Error('Profile not connected');
+              }
+            })
+            .catch(() => {
+              // Show connection needed status
+              gameProfileStatus.innerHTML = '<div style="color:var(--accent);margin:10px 0;"><span style="background:var(--accent);color:var(--bg);padding:4px 8px;border-radius:4px;">Game Profile Not Connected</span></div>';
+              connectionInstructions.style.display = 'block';
+              
+              // Show web profile only
+              if (profileRaw) {
+                profileJson.textContent = JSON.stringify(JSON.parse(profileRaw), null, 2);
+              } else if (id) {
+                profileJson.textContent = JSON.stringify({ id: id }, null, 2);
+              }
+            });
+        }
+
+        if (profileRaw || id) {
           profileCard.style.display = 'block';
           notSigned.style.display = 'none';
-        } else if (id) {
-          profileJson.textContent = JSON.stringify({ id: id }, null, 2);
-          profileCard.style.display = 'block';
-          notSigned.style.display = 'none';
+          
+          if (accountId) {
+            accountId.textContent = id;
+          }
+          
+          // Check for connected game profile
+          checkGameProfile();
         } else {
           profileCard.style.display = 'none';
           notSigned.style.display = 'block';
         }
-
-        refreshNav();
 
         document.getElementById('signOutBtn').addEventListener('click', () => {
           try { localStorage.removeItem('currentUser'); localStorage.removeItem('currentUserProfile'); } catch (e) {}
