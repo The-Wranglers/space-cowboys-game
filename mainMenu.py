@@ -5,6 +5,8 @@ class MainMenu:
         pygame.font.init()
         self.font = pygame.font.Font(None, 60)
         self.hover_font = pygame.font.Font(None, 70)  # slightly larger for hover
+        self.background_image = pygame.image.load('./assets/images/Cowboy image.png').convert()
+
         self.options = [
             {"label": "Play", "action": self.play_action},
             {"label": "Leadership Board", "action": self.leadership_action},
@@ -21,13 +23,15 @@ class MainMenu:
         print("Instructions clicked (future: go to instructions)")
 
     def load_main_menu(self, screen):
+        self.background_image = pygame.transform.scale(self.background_image, (300, 400)) # sets the size of the image
         mouse_pos = pygame.mouse.get_pos()
         mouse_click = pygame.mouse.get_pressed()[0]
         title_surface = self.font.render("Main Menu", True, (255, 255, 255))
-        title_rect = title_surface.get_rect(center=(screen.get_width() / 2, 80))
+        title_rect = title_surface.get_rect(center=(screen.get_width() / 2, 80)) # Main Menu Text
+        screen.blit(self.background_image, (screen.get_width() / 2 -157 , 80))
         screen.blit(title_surface, title_rect)
 
-        start_y = 160
+        start_y = 500
         for option in self.options:
             font = self.font
             text_color = (255, 255, 255)
