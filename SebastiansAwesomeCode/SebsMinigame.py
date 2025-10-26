@@ -88,6 +88,13 @@ dead_image = dead_image_original
 # Load player directional images
 for direction in ['w', 'a', 's', 'd']:
     try:
+<<<<<<< HEAD
+=======
+        background_img_path = f"{project_root}assets/images/marsBackground.png"
+        dead_image_path = f"{project_root}assets/images/deadBara.png"
+        enemy_image_path = f"{project_root}assets/images/octopusNormal.png"
+        damaged_enemy_image_path = f"{project_root}assets/images/octopusDamaged.png"
+>>>>>>> 64baf86 (poopoop)
         img_path = f"{project_root}assets/images/{direction}Capy.png"
         player_images_original[direction] = pygame.image.load(img_path)
         player_images[direction] = player_images_original[direction]
@@ -151,19 +158,29 @@ bulletSpeed = 600
 enemyBulletSpeed = 400
 player_speed = 300
 enemy_speed = 150
-target_alive = True
+target_alive = True 
 target_killed = False
+enemy_health = 3
+max_enemy_health = 3
+enemyActuallyDead = False
 counter = 0
 shoot_cooldown = 0
 playerDead = False
 displayDead = False
 freeze = False
 count = 0
+<<<<<<< HEAD
 # Spawn first target (enemy) using normalized coordinates
 norm_Xtarget = 0.9  # 90% of screen width
 norm_Ytarget = 0.9  # 90% of screen height
 Xtarget = int(norm_Xtarget * screen.get_width())
 Ytarget = int(norm_Ytarget * screen.get_height())
+=======
+target_alive = True
+# Spawn first target (enemy)
+Xtarget = (screen.get_width() - 100)
+Ytarget = (screen.get_height() - 100)
+>>>>>>> 64baf86 (poopoop)
 
 # Enemy dodge direction control
 dodge_timer = 0
@@ -301,9 +318,10 @@ while running:
     # Collision check (player bullets hit target)
     node = stack.top
     while node:
-        if math.hypot(node.x - Xtarget, node.y - Ytarget) < 50:
-            target_killed = True
-            target_alive = False
+        if math.hypot(node.x - Xtarget, node.y - Ytarget) < 50 and target_alive:
+                target_killed = True
+                 # Stop after one hit per bullet frame
+
         node = node.next
 
     # Collision check (enemy bullets hit player)
@@ -316,7 +334,9 @@ while running:
 
     # Respawn target if killed
     if target_killed:
+        target_alive = False
         counter += dt
+<<<<<<< HEAD
         if counter >= 0.5:
             # Generate normalized random position
             norm_Xtarget = random.uniform(0.1, 0.9)
@@ -324,6 +344,14 @@ while running:
             # Convert to screen coordinates
             Xtarget = int(norm_Xtarget * screen.get_width())
             Ytarget = int(norm_Ytarget * screen.get_height())
+=======
+        
+        if counter >= 1.0:
+            enemy_health -= 1
+            if enemy_health < 0: enemyActuallyDead = True
+            Xtarget = random.randint(100, screen.get_width() - 100)
+            Ytarget = random.randint(100, screen.get_height() - 100)
+>>>>>>> 64baf86 (poopoop)
             target_alive = True
             target_killed = False
             counter = 0
@@ -339,6 +367,10 @@ while running:
 
     # Draw player character using current image
     screen.blit(current_player_image, player_rect)
+    if enemyActuallyDead:    
+        freeze = True
+        target_alive = False
+
     if target_alive:
         enemy_rect = enemy_image.get_rect(center=(Xtarget, Ytarget))
         screen.blit(enemy_image, enemy_rect)
@@ -346,8 +378,20 @@ while running:
         damaged_enemy_rect = damaged_enemy_image.get_rect(center=(Xtarget, Ytarget))
         screen.blit(damaged_enemy_image, damaged_enemy_rect)
 
+<<<<<<< HEAD
     # Draw player bullets with relative size
     bullet_radius = denormalize_radius(0.01, screen)  # 1% of screen size
+=======
+    bar_width = 100
+    bar_height = 10
+    bar_x = Xtarget - bar_width / 2
+    bar_y = Ytarget - 70
+    health_ratio = max(enemy_health / max_enemy_health, 0)
+    pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+    pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, bar_width * health_ratio, bar_height))
+
+    # Player bullets
+>>>>>>> 64baf86 (poopoop)
     node = stack.top
     while node:
         pygame.draw.circle(screen, "yellow", (int(node.x), int(node.y)), int(bullet_radius))
@@ -362,7 +406,7 @@ while running:
         pygame.display.flip()
         if playerDead: 
             count += dt
-            if count >= 0.2:
+            if count >= 0.5:
                 freeze = True
     if playerDead:
         displayDead = True
