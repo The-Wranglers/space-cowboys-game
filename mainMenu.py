@@ -12,3 +12,4 @@ class MainMenu:
         screen.blit(self.MENUPATH, (0,0))
 
     def load_options(self, screen):
+        pass 
