@@ -10,7 +10,7 @@ class SpaceCowboyGame:
         self.clock = pygame.time.Clock()
         self.running = True
         self.dt = 0
-        self.player_pos = pygame.Vector2(self.screen.get_width() / 2, self.screen.get_height() / 2)
+        # self.player_pos = pygame.Vector2(self.screen.get_width() / 2, self.screen.get_height() / 2)
         self.main_menu = MainMenu()
 
     def handle_events(self):
