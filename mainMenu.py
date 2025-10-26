@@ -3,6 +3,13 @@ import pygame
 class MainMenu:
     def __init__(self, on_play=None):
         pygame.font.init()
+        from utils.window_state import WindowState
+        self.window_state = WindowState.get_instance()
+        
+        # Reference dimensions for consistent scaling
+        self.REF_WIDTH = 1280
+        self.REF_HEIGHT = 720
+        
         # base fonts will be created per-screen so they scale with resolution
         self.font = None
         self.hover_font = None
@@ -30,11 +37,11 @@ class MainMenu:
 
         # Recompute scaled resources & fonts if resolution changed
         if self._last_screen_size != (sw, sh):
-            # scale background to take ~25% of screen width, keep aspect
-            target_bg_w = max(120, int(sw * 0.25))
+            # scale background relative to reference size
             raw_w, raw_h = self._raw_bg.get_size()
-            scale_ratio = target_bg_w / raw_w
-            target_bg_h = max(120, int(raw_h * scale_ratio))
+            ref_scale = min(sw / self.REF_WIDTH, sh / self.REF_HEIGHT)
+            target_bg_w = max(120, int(raw_w * ref_scale * 0.25))
+            target_bg_h = max(120, int(raw_h * ref_scale * 0.25))
             self._scaled_bg = pygame.transform.smoothscale(self._raw_bg, (target_bg_w, target_bg_h))
 
             # compute font sizes relative to screen height

@@ -15,6 +15,9 @@ class PlayScreen:
         game_state_callback: a function we can call to tell the game
                              to change screens (ex: 'sheriff_level')
         """
+        from utils.window_state import WindowState
+        self.window_state = WindowState.get_instance()
+        
         # load background
         self.bg_raw = pygame.image.load(bg_path).convert()
 
@@ -22,7 +25,8 @@ class PlayScreen:
         self.game_state_callback = game_state_callback
 
         # font / UI text
-        self.font = pygame.font.Font(None, 32)
+        base_font_size = int(32 * (self.window_state.height / 720))  # Scale font relative to reference height
+        self.font = pygame.font.Font(None, base_font_size)
         self.text_color = (255, 255, 255)
         self.dialog_text = "Select a planet to get started"
 

@@ -32,7 +32,17 @@ class AdventureMap:
         self.load_background()
         self.player_images = self.load_player_images()
         self.current_player_image = self.player_images.get('a')
-        self.player_pos = pygame.Vector2(self.screen.get_width() / 2, self.screen.get_height() / 2)
+        
+        # Store normalized player position (0-1 range relative to screen)
+        try:
+            from utils.ui_scaling import normalize_point, denormalize_point
+            self.norm_player_pos = pygame.Vector2(0.5, 0.5)  # Center of screen
+            pos = denormalize_point(self.norm_player_pos.x, self.norm_player_pos.y, self.screen)
+            self.player_pos = pygame.Vector2(pos[0], pos[1])
+        except Exception:
+            self.player_pos = pygame.Vector2(self.screen.get_width() / 2, self.screen.get_height() / 2)
+            self.norm_player_pos = pygame.Vector2(0.5, 0.5)
+            
         self.player_rect = self.current_player_image.get_rect(center=self.player_pos)
         self.profile = PlayerProfile()
         # If an encounter_generator was explicitly provided, use it. Otherwise try to
@@ -58,16 +68,45 @@ class AdventureMap:
                 self.encounter_points = self.default_encounters()
                 self._encounter_source = 'default_encounters'
 
-        # Normalize encounter positions to a reference size (bg image if available, else current screen)
+        # Set up normalized encounter positions and keep them within screen bounds
         try:
-            from utils.ui_scaling import get_ref_size, set_encounters_normalized, recalc_encounter_positions
+            from utils.ui_scaling import get_ref_size, denormalize_point
             ref_size = get_ref_size(self.bg_image, self.screen)
-            set_encounters_normalized(self.encounter_points, ref_size)
-            # ensure absolute positions are set for current screen
-            recalc_encounter_positions(self.encounter_points, self.screen, ref_size)
             self._encounter_ref_size = ref_size
-        except Exception:
-            # fallback — leave encounters as-is
+
+            # Ensure all encounters are properly normalized and within bounds
+            for enc in self.encounter_points:
+                pos = enc.get('pos')
+                if pos is None:
+                    continue
+                
+                try:
+                    # If position is already normalized (0-1 range)
+                    if 0 <= pos.x <= 1 and 0 <= pos.y <= 1:
+                        norm_x, norm_y = pos.x, pos.y
+                    else:
+                        # Normalize the position relative to reference size
+                        norm_x = pos.x / ref_size[0]
+                        norm_y = pos.y / ref_size[1]
+                    
+                    # Keep within safe screen bounds (5%-95% of screen)
+                    norm_x = max(0.05, min(0.95, norm_x))
+                    norm_y = max(0.05, min(0.95, norm_y))
+                    
+                    # Store normalized position
+                    enc['_pos_norm'] = (norm_x, norm_y)
+                    
+                    # Update absolute position for current screen size
+                    screen_x, screen_y = denormalize_point(norm_x, norm_y, self.screen)
+                    enc['pos'] = pygame.Vector2(screen_x, screen_y)
+                except Exception:
+                    continue
+                    
+            # Store a margin for encounter radius to ensure visibility
+            self.encounter_radius_norm = 30 / min(ref_size[0], ref_size[1])
+                    
+        except Exception as e:
+            print(f"Error setting up encounters: {e}", file=sys.stderr)
             self._encounter_ref_size = (self.screen.get_width(), self.screen.get_height())
 
         # Log which source produced the encounter points and enumerate them for debugging
@@ -112,11 +151,11 @@ class AdventureMap:
         return player_images
 
     def default_encounters(self):
-        w, h = self.screen.get_width(), self.screen.get_height()
+        """Create default encounters with normalized positions (0.05-0.95 range to stay within screen)"""
         return [
-            {"id": "enc0", "pos": pygame.Vector2(w * 0.3, h * 0.4), "type": "dialogue", "character": "Mysterious Stranger"},
-            {"id": "enc1", "pos": pygame.Vector2(w * 0.7, h * 0.6), "type": "minigame"},
-            {"id": "enc2", "pos": pygame.Vector2(w * 0.5, h * 0.8), "type": "dialogue", "character": "Lost Robot"},
+            {"id": "enc0", "pos": pygame.Vector2(0.3, 0.4), "type": "dialogue", "character": "Mysterious Stranger"},
+            {"id": "enc1", "pos": pygame.Vector2(0.7, 0.6), "type": "minigame"},
+            {"id": "enc2", "pos": pygame.Vector2(0.5, 0.8), "type": "dialogue", "character": "Lost Robot"},
         ]
 
     def run(self, DungeonMasterClass, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame):
@@ -137,12 +176,22 @@ class AdventureMap:
                     running = False
                 elif event.type == pygame.VIDEORESIZE:
                     self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
-                    # Recalculate encounter positions for new window size
                     try:
-                        from utils.ui_scaling import recalc_encounter_positions
-                        recalc_encounter_positions(self.encounter_points, self.screen, getattr(self, '_encounter_ref_size', (self.screen.get_width(), self.screen.get_height())))
-                    except Exception:
-                        pass
+                        from utils.ui_scaling import denormalize_point
+                        
+                        # Update player position
+                        pos = denormalize_point(self.norm_player_pos.x, self.norm_player_pos.y, self.screen)
+                        self.player_pos.x, self.player_pos.y = pos
+                        
+                        # Update encounter positions
+                        for enc in self.encounter_points:
+                            if '_pos_norm' in enc:
+                                norm_x, norm_y = enc['_pos_norm']
+                                screen_x, screen_y = denormalize_point(norm_x, norm_y, self.screen)
+                                enc['pos'] = pygame.Vector2(screen_x, screen_y)
+                                
+                    except Exception as e:
+                        print(f"Error updating positions on resize: {e}", file=sys.stderr)
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         menu_active = True
@@ -221,11 +270,17 @@ class AdventureMap:
             self.player_rect = self.current_player_image.get_rect(center=self.player_pos)
             self.screen.blit(self.current_player_image, self.player_rect)
 
-            # Draw encounter points
+            # Draw encounter points with normalized radius
+            try:
+                from utils.ui_scaling import denormalize_radius
+                radius = denormalize_radius(self.encounter_radius_norm, self.screen)
+            except Exception:
+                radius = max(30, int(min(self.screen.get_width(), self.screen.get_height()) * 0.04))
+                
             for idx, enc in enumerate(self.encounter_points):
                 pt = enc["pos"]
                 color = (0, 255, 255) if not self.dm.encounter_states.get(idx, False) else (100, 100, 100)
-                pygame.draw.circle(self.screen, color, (int(pt.x), int(pt.y)), 30)
+                pygame.draw.circle(self.screen, color, (int(pt.x), int(pt.y)), radius)
                 # draw a small badge/icon if player has chosen an option for this encounter
                 choice = self.profile.get_choice(idx)
                 if choice is not None:
@@ -350,16 +405,32 @@ class AdventureMap:
                         else:
                             self.dm.encounter(self.screen, idx)
 
-            # Player movement
+            # Player movement - using normalized coordinates
             keys = pygame.key.get_pressed()
+            normalized_speed = (300 * dt) / self.screen.get_height()  # Scale speed relative to screen height
+            
             if keys[pygame.K_w]:
-                self.player_pos.y -= 300 * dt
+                self.norm_player_pos.y -= normalized_speed
             if keys[pygame.K_s]:
-                self.player_pos.y += 300 * dt
+                self.norm_player_pos.y += normalized_speed
             if keys[pygame.K_a]:
-                self.player_pos.x -= 300 * dt
+                self.norm_player_pos.x -= normalized_speed * (self.screen.get_width() / self.screen.get_height())
             if keys[pygame.K_d]:
-                self.player_pos.x += 300 * dt
+                self.norm_player_pos.x += normalized_speed * (self.screen.get_width() / self.screen.get_height())
+                
+            # Keep player within bounds (0-1 range)
+            self.norm_player_pos.x = max(0.0, min(1.0, self.norm_player_pos.x))
+            self.norm_player_pos.y = max(0.0, min(1.0, self.norm_player_pos.y))
+            
+            # Update absolute position
+            try:
+                from utils.ui_scaling import denormalize_point
+                pos = denormalize_point(self.norm_player_pos.x, self.norm_player_pos.y, self.screen)
+                self.player_pos.x, self.player_pos.y = pos
+            except Exception:
+                # Fallback to direct position update if import fails
+                self.player_pos.x = self.norm_player_pos.x * self.screen.get_width()
+                self.player_pos.y = self.norm_player_pos.y * self.screen.get_height()
 
             pygame.display.flip()
             dt = self.clock.tick(60) / 1000

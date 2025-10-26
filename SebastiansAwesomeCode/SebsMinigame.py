@@ -47,37 +47,56 @@ class LinkedListStack:
 
 
 pygame.init()
-screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
+from utils.window_state import WindowState
+window_state = WindowState.get_instance()
+screen = window_state.create_screen()
 clock = pygame.time.Clock()
 running = True
+
+# Store reference size for normalization
+REF_WIDTH = 1280
+REF_HEIGHT = 720
 
 # Load player character images
 project_root = __file__.rsplit('SebastiansAwesomeCode', 1)[0]
 player_images = {}
+player_images_original = {}  # Store original unscaled images
+background_img_path = f"{project_root}assets/images/marsBackground.jpg"
+dead_image_path = f"{project_root}assets/images/deadBara.png"
+enemy_image_path = f"{project_root}assets/images/octopusNormal.png"
+damaged_enemy_image_path = f"{project_root}assets/images/octopusDamaged.png"
+
+# Load all images once
+try:
+    enemy_image_original = pygame.image.load(enemy_image_path)
+    damaged_enemy_image_original = pygame.image.load(damaged_enemy_image_path)
+    dead_image_original = pygame.image.load(dead_image_path)
+except Exception as e:
+    print(f"Failed to load enemy images: {e}", file=sys.stderr)
+    enemy_image_original = pygame.Surface((100, 100))
+    damaged_enemy_image_original = pygame.Surface((100, 100))
+    dead_image_original = pygame.Surface((100, 100))
+    enemy_image_original.fill("red")
+    damaged_enemy_image_original.fill("orange")
+    dead_image_original.fill("gray")
+
+# Initialize the scaled versions
+enemy_image = enemy_image_original
+damaged_enemy_image = damaged_enemy_image_original
+dead_image = dead_image_original
+
+# Load player directional images
 for direction in ['w', 'a', 's', 'd']:
     try:
-        background_img_path = f"{project_root}assets/images/marsBackground.jpg"
-        dead_image_path = f"{project_root}assets/images/deadBara.png"
-        enemy_image_path = f"{project_root}assets/images/octopusNormal.png"
-        damaged_enemy_image_path = f"{project_root}assets/images/octopusDamaged.png"
         img_path = f"{project_root}assets/images/{direction}Capy.png"
-        player_images[direction] = pygame.image.load(img_path)
+        player_images_original[direction] = pygame.image.load(img_path)
+        player_images[direction] = player_images_original[direction]
     except Exception as e:
         print(f"Failed to load player image {direction}Capy.png: {e}", file=sys.stderr)
-    try:
-        damaged_enemy_image = pygame.image.load(damaged_enemy_image_path)
-    except Exception as e:
-        print(f"Failed to load octopusDamaged.png: {e}", file=sys.stderr)
-    try:
-        enemy_image = pygame.image.load(enemy_image_path)
-    except Exception as e:
-        print(f"Failed to load octopusNormal.png: {e}", file=sys.stderr)
-    try:
-        dead_image = pygame.image.load(dead_image_path)
-    except Exception as e:
-        print(f"Failed to load deadBara.png: {e}", file=sys.stderr)
-        dead_image = pygame.Surface((100, 100))
-        dead_image.fill("gray")
+        player_images_original[direction] = pygame.Surface((100, 100))
+        player_images[direction] = player_images_original[direction]
+        player_images[direction].fill("brown")
+
 # Default player image (facing left)
 current_player_image = player_images.get('a')  # aCapy.png is the default
 if not current_player_image:  # Fallback if image loading failed
@@ -87,9 +106,40 @@ if not current_player_image:  # Fallback if image loading failed
 
 from utils.ui_scaling import normalize_point, denormalize_point, normalize_radius, denormalize_radius
 
-# Store normalized coordinates (0-1 range)
-norm_cowboy_pos = [100/1280, 100/720]  # Initial position normalized to default window size
-cowboy_pos = [int(norm_cowboy_pos[0] * screen.get_width()), int(norm_cowboy_pos[1] * screen.get_height())]
+# Store original sizes and calculate size ratios
+character_size_ratio = 0.15  # Character takes up 15% of screen height
+original_sizes = {
+    'player': player_images_original['a'].get_size(),
+    'enemy': enemy_image_original.get_size(),
+    'damaged_enemy': damaged_enemy_image_original.get_size(),
+    'dead': dead_image_original.get_size()
+}
+
+def scale_images(screen_height):
+    """Scale all images relative to screen height"""
+    target_height = int(screen_height * character_size_ratio)
+    
+    # Scale player images
+    for direction in player_images:
+        orig = player_images_original[direction]
+        aspect_ratio = orig.get_width() / orig.get_height()
+        new_size = (int(target_height * aspect_ratio), target_height)
+        player_images[direction] = pygame.transform.smoothscale(orig, new_size)
+    
+    # Scale enemy images
+    aspect_ratio = enemy_image_original.get_width() / enemy_image_original.get_height()
+    new_size = (int(target_height * aspect_ratio), target_height)
+    global enemy_image, damaged_enemy_image, dead_image
+    enemy_image = pygame.transform.smoothscale(enemy_image_original, new_size)
+    damaged_enemy_image = pygame.transform.smoothscale(damaged_enemy_image_original, new_size)
+    dead_image = pygame.transform.smoothscale(dead_image_original, new_size)
+
+# Initial scaling
+scale_images(screen.get_height())
+
+# Store normalized coordinates (0-1 range) using reference size
+norm_cowboy_pos = normalize_point(100, 100, (REF_WIDTH, REF_HEIGHT))
+cowboy_pos = list(denormalize_point(norm_cowboy_pos[0], norm_cowboy_pos[1], screen))
 player_rect = current_player_image.get_rect(center=cowboy_pos)
 stack = LinkedListStack()       # Player bullets
 enemy_stack = LinkedListStack() # Enemy bullets
@@ -126,13 +176,17 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             
-            if event.type == pygame.VIDEORESIZE:
-                screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
-                # Update positions based on new screen size
-                cowboy_pos[0] = int(norm_cowboy_pos[0] * screen.get_width())
-                cowboy_pos[1] = int(norm_cowboy_pos[1] * screen.get_height())
-                Xtarget = int(norm_Xtarget * screen.get_width())
-                Ytarget = int(norm_Ytarget * screen.get_height())
+        elif event.type == pygame.VIDEORESIZE:
+            # Update global window state
+            window_state.update_size(event.w, event.h)
+            screen = window_state.create_screen()
+            
+            # Update positions based on new screen size using reference-based normalization
+            cowboy_pos[0], cowboy_pos[1] = denormalize_point(norm_cowboy_pos[0], norm_cowboy_pos[1], screen)
+            Xtarget, Ytarget = denormalize_point(norm_Xtarget, norm_Ytarget, screen)
+            
+            # Rescale all images for new screen size
+            scale_images(screen.get_height())
             
         # Left click to shoot
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -148,20 +202,24 @@ while running:
     # Player movement and image updates
     keys = pygame.key.get_pressed()
     moved = False
+    
+    # Calculate movement speed relative to reference size
+    normalized_speed = (player_speed * dt) / REF_HEIGHT
+    
     if keys[pygame.K_w]:
-        norm_cowboy_pos[1] -= (player_speed * dt) / screen.get_height()
+        norm_cowboy_pos[1] -= normalized_speed
         current_player_image = player_images.get('w', current_player_image)
         moved = True
     if keys[pygame.K_s]:
-        norm_cowboy_pos[1] += (player_speed * dt) / screen.get_height()
+        norm_cowboy_pos[1] += normalized_speed
         current_player_image = player_images.get('s', current_player_image)
         moved = True
     if keys[pygame.K_a]:
-        norm_cowboy_pos[0] -= (player_speed * dt) / screen.get_width()
+        norm_cowboy_pos[0] -= normalized_speed * (REF_HEIGHT / REF_WIDTH)
         current_player_image = player_images.get('a', current_player_image)
         moved = True
     if keys[pygame.K_d]:
-        norm_cowboy_pos[0] += (player_speed * dt) / screen.get_width()
+        norm_cowboy_pos[0] += normalized_speed * (REF_HEIGHT / REF_WIDTH)
         current_player_image = player_images.get('d', current_player_image)
         moved = True
     if keys[pygame.K_q] and playerDead:
@@ -205,13 +263,12 @@ while running:
         move_x /= move_dist
         move_y /= move_dist
 
-    # Update enemy position using screen-relative speed
-    Xtarget += move_x * (enemy_speed * dt)
-    Ytarget += move_y * (enemy_speed * dt)
-
-    # Convert absolute position to normalized
-    norm_Xtarget = Xtarget / screen.get_width()
-    norm_Ytarget = Ytarget / screen.get_height()
+    # Update enemy position using normalized speed
+    normalized_enemy_speed = (enemy_speed * dt) / REF_HEIGHT
+    norm_Xtarget += move_x * normalized_enemy_speed * (REF_HEIGHT / REF_WIDTH)
+    norm_Ytarget += move_y * normalized_enemy_speed
+    
+    # Keep normalized coordinates for position tracking
     
     # Keep within screen bounds in normalized coordinates
     norm_Xtarget = max(0.05, min(0.95, norm_Xtarget))
@@ -287,7 +344,7 @@ while running:
         screen.blit(damaged_enemy_image, damaged_enemy_rect)
 
     # Draw player bullets with relative size
-    bullet_radius = denormalize_radius(0.01, screen.get_width(), screen.get_height())  # 1% of screen size
+    bullet_radius = denormalize_radius(0.01, screen)  # 1% of screen size
     node = stack.top
     while node:
         pygame.draw.circle(screen, "yellow", (int(node.x), int(node.y)), int(bullet_radius))

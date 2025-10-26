@@ -11,8 +11,13 @@ class SpaceCowboyGame:
     def __init__(self, width=1280, height=720, title="Space Cowboy"):
         pygame.init()
 
-        # your window setup
-        self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+        # Initialize window state singleton
+        from utils.window_state import WindowState
+        self.window_state = WindowState.get_instance()
+        self.window_state.update_size(width, height)
+        
+        # Create screen using window state
+        self.screen = self.window_state.create_screen()
         pygame.display.set_caption(title)
 
         self.clock = pygame.time.Clock()
@@ -55,11 +60,9 @@ class SpaceCowboyGame:
                 self.running = False
 
             elif event.type == pygame.VIDEORESIZE:
-                # keep screen surface in sync with new window size
-                self.screen = pygame.display.set_mode(
-                    (event.w, event.h),
-                    pygame.RESIZABLE
-                )
+                # Update window state and recreate screen
+                self.window_state.update_size(event.w, event.h)
+                self.screen = self.window_state.create_screen()
 
             elif event.type == pygame.KEYDOWN:
                 # ESC -> back to menu for now no matter what

@@ -4,11 +4,20 @@ import math
 
 # pygame setup
 py.init()
-W = 1280
-H = 720
-screen = py.display.set_mode((W, H), py.SCALED)
+from utils.window_state import WindowState
+window_state = WindowState.get_instance()
+
+# Reference dimensions for consistent scaling
+REF_WIDTH = 1280
+REF_HEIGHT = 720
+
+screen = window_state.create_screen()
 py.display.set_caption("Alien Decode")
 clock = py.time.Clock()
+
+def get_scaled_font_size(base_size):
+    """Scale font size based on current screen height"""
+    return int(base_size * (window_state.height / REF_HEIGHT))
 
 #Audio Setup
 # Audio
@@ -22,10 +31,17 @@ try:
 except Exception:
     CLICK = None  # run silently if file isn't present
 
-# Fonts
-font_big = py.font.SysFont("consolas", 36)
-font_med = py.font.SysFont("consolas", 28)
-font_small = py.font.SysFont("consolas", 22)
+# Fonts - scale based on screen height
+font_big = py.font.SysFont("consolas", get_scaled_font_size(36))
+font_med = py.font.SysFont("consolas", get_scaled_font_size(28))
+font_small = py.font.SysFont("consolas", get_scaled_font_size(22))
+
+def update_fonts():
+    """Update font sizes when screen is resized"""
+    global font_big, font_med, font_small
+    font_big = py.font.SysFont("consolas", get_scaled_font_size(36))
+    font_med = py.font.SysFont("consolas", get_scaled_font_size(28))
+    font_small = py.font.SysFont("consolas", get_scaled_font_size(22))
 
 # Encryption and Decryption with Caesar Cipher 
 # Converts chars to unicode number, sets base then shifts 'k' times. 
@@ -111,6 +127,10 @@ while running:
     for event in py.event.get():
         if event.type == py.QUIT:
             running = False
+        elif event.type == py.VIDEORESIZE:
+            window_state.update_size(event.w, event.h)
+            screen = window_state.create_screen()
+            update_fonts()  # Update font sizes for new screen size
         elif event.type == py.KEYDOWN:
             # If won pressing 'n' starts a new round
             if won:
@@ -142,9 +162,13 @@ while running:
 
     # Drawing   
     screen.fill((14, 18, 28))
+    
+    # Get current screen dimensions
+    screen_width = window_state.width
+    screen_height = window_state.height
 
     title = font_big.render("Alien Code Breaker — Shift-Decode", True, (120, 200, 255))
-    screen.blit(title, (W//2 - title.get_width()//2, 24))
+    screen.blit(title, (screen_width//2 - title.get_width()//2, 24))
 
     # Instructions
     info_lines = [
@@ -189,19 +213,20 @@ while running:
 
     # Win banner
     if won:
-        overlay = py.Surface((W, 110), py.SRCALPHA)
+        banner_height = int(110 * (screen_height / REF_HEIGHT))
+        overlay = py.Surface((screen_width, banner_height), py.SRCALPHA)
         overlay.fill((20, 60, 30, 220))
-        screen.blit(overlay, (0, H//2 - 55))
+        screen.blit(overlay, (0, screen_height//2 - banner_height//2))
 
         win_msg = font_big.render("TRANSMISSION DECODED!", True, (120, 255, 170))
         tip_msg = font_med.render("Press N for a new round", True, (230, 255, 240))
-        screen.blit(win_msg, (W//2 - win_msg.get_width()//2, H//2 - 40))
-        screen.blit(tip_msg, (W//2 - tip_msg.get_width()//2, H//2 + 8))
+        screen.blit(win_msg, (screen_width//2 - win_msg.get_width()//2, screen_height//2 - 40))
+        screen.blit(tip_msg, (screen_width//2 - tip_msg.get_width()//2, screen_height//2 + 8))
 
 
     if not won and shift_message:
         txt = font_med.render(shift_message, True, (255, 220, 140))
-        screen.blit(txt, (W//2 - txt.get_width()//2, y + 10))
+        screen.blit(txt, (screen_width//2 - txt.get_width()//2, y + 10))
     py.display.flip()
 
 py.quit()
