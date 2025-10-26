@@ -3,6 +3,11 @@ import pygame
 import math
 import random
 import sys
+import os
+
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 class Node:
     def __init__(self, x, y, xSpeed, ySpeed):
