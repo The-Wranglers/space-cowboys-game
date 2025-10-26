@@ -16,6 +16,11 @@ from settings import (
 
 # --- AI Dungeon Master ---
 import importlib.util
+import threading
+import http.server
+import socketserver
+import json
+import webbrowser
 
 class DungeonMaster:
     def __init__(self):
@@ -125,47 +130,68 @@ except Exception as e:
 player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 
 import random
+from player_profile import PlayerProfile
+
+# create/load the player profile
+profile = PlayerProfile()
 
 # --- Encounter points and types ---
 encounter_points = [
-    {"pos": pygame.Vector2(screen.get_width() * 0.3, screen.get_height() * 0.4), "type": "dialogue", "character": "Mysterious Stranger"},
-    {"pos": pygame.Vector2(screen.get_width() * 0.7, screen.get_height() * 0.6), "type": "minigame"},
-    {"pos": pygame.Vector2(screen.get_width() * 0.5, screen.get_height() * 0.8), "type": "dialogue", "character": "Lost Robot"},
+    {"id": "enc0", "pos": pygame.Vector2(screen.get_width() * 0.3, screen.get_height() * 0.4), "type": "dialogue", "character": "Mysterious Stranger"},
+    {"id": "enc1", "pos": pygame.Vector2(screen.get_width() * 0.7, screen.get_height() * 0.6), "type": "minigame"},
+    {"id": "enc2", "pos": pygame.Vector2(screen.get_width() * 0.5, screen.get_height() * 0.8), "type": "dialogue", "character": "Lost Robot"},
 ]
 
 def ai_generate_dialogue(character):
-    # Returns (prompt, [responses], [followups])
+    # Returns a dialogue structure: { prompt: str, options: [ {text, followup, loop} ] }
     if character == "Mysterious Stranger":
-        prompt = "Greetings, traveler. The path ahead is perilous. Will you trust your instincts or seek guidance?"
-        responses = [
-            "I trust my instincts.",
-            "I seek your guidance.",
-            "Who are you?"
-        ]
-        followups = [
-            "Stranger: Then may your instincts serve you well.",
-            "Stranger: Very well. Beware the shadows ahead.",
-            "Stranger: I am but a watcher in these lands."
-        ]
+        return {
+            "prompt": "Greetings, traveler. The path ahead is perilous. Will you trust your instincts or seek guidance?",
+            "options": [
+                {"text": "I trust my instincts.", "followup": "Stranger: Then may your instincts serve you well.", "loop": False},
+                {"text": "I seek your guidance.", "followup": "Stranger: Very well. Beware the shadows ahead.", "loop": False, "effect": {"path_open": True}},
+                {"text": "Who are you?", "followup": "Stranger: I am but a watcher in these lands.", "loop": True}
+            ]
+        }
     elif character == "Lost Robot":
-        prompt = "Bzzt... Error! Where is my creator? Can you help me find my way?"
-        responses = [
-            "I'll help you!",
-            "Sorry, I'm lost too.",
-            "What do you remember?"
-        ]
-        followups = [
-            "Robot: Thank you! Initializing gratitude protocol...",
-            "Robot: Oh no! We are both lost. Bzzt...",
-            "Robot: I remember... a warm light and a kind voice."
-        ]
+        return {
+            "prompt": "Bzzt... Error! Where is my creator? Can you help me find my way?",
+            "options": [
+                {"text": "I'll help you!", "followup": "Robot: Thank you! Initializing gratitude protocol...", "loop": False, "effect": {"robot_helped": True}},
+                {"text": "Sorry, I'm lost too.", "followup": "Robot: Oh no! We are both lost. Bzzt...", "loop": False},
+                {"text": "What do you remember?", "followup": "Robot: I remember... a warm light and a kind voice.", "loop": True}
+            ]
+        }
+    elif character == "Gatekeeper":
+        return {
+            "prompt": "Halt! This path requires a token. Do you offer tribute or riddles?",
+            "options": [
+                {"text": "I offer tribute.", "followup": "Gatekeeper: The gate acknowledges your offering.", "loop": False, "effect": {"gate_unlocked": True}},
+                {"text": "I will solve your riddle.", "followup": "Gatekeeper: Very well. What walks on four legs in the morning?", "loop": True}
+            ]
+        }
     else:
-        prompt = "The wind whispers, but says nothing."
-        responses = ["..."]
-        followups = ["..."]
-    return prompt, responses, followups
+        return {"prompt": "The wind whispers, but says nothing.", "options": [{"text": "...", "followup": "...", "loop": False}]}
 
 dm = DungeonMaster()
+
+# Load profile choices and mark encounters done if present
+for k in profile.choices().keys():
+    try:
+        idx = int(k)
+        dm.encounter_states[idx] = True
+    except Exception:
+        continue
+
+# If the profile indicates the path is open, ensure the special encounter appears
+if profile.get_flag('path_open'):
+    if not any(enc.get('id') == 'path' for enc in encounter_points):
+        encounter_points.append({
+            "id": "path",
+            "pos": pygame.Vector2(screen.get_width() * 0.85, screen.get_height() * 0.3),
+            "type": "dialogue",
+            "character": "Gatekeeper"
+        })
 
 while running:
     for event in pygame.event.get():
@@ -173,6 +199,78 @@ while running:
             running = False
         elif event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_j:
+                # Start pairing helper: spawn a local HTTP server and open the browser to pair.html
+                def start_pairing():
+                    # choose a free port by binding a temporary socket
+                    import socket
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.bind(("127.0.0.1", 0))
+                    port = s.getsockname()[1]
+                    s.close()
+                    token = os.urandom(8).hex()
+
+                    class PairHandler(http.server.BaseHTTPRequestHandler):
+                        server_token = token
+
+                        def _set_cors(self):
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+
+                        def do_OPTIONS(self):
+                            self.send_response(200)
+                            self._set_cors()
+                            self.end_headers()
+
+                        def do_POST(self):
+                            if self.path != '/pair':
+                                self.send_response(404)
+                                self.end_headers()
+                                return
+                            length = int(self.headers.get('Content-Length', 0))
+                            raw = self.rfile.read(length).decode('utf-8')
+                            try:
+                                data = json.loads(raw)
+                                if data.get('token') != self.server_token:
+                                    self.send_response(403)
+                                    self._set_cors()
+                                    self.end_headers()
+                                    return
+                                profile_data = data.get('profile')
+                                # Save linked account to player profile
+                                try:
+                                    profile.set_account(profile_data)
+                                except Exception:
+                                    pass
+                                self.send_response(200)
+                                self._set_cors()
+                                self.end_headers()
+                                # stop server after handling
+                                def stop_server():
+                                    httpd.shutdown()
+                                threading.Thread(target=stop_server, daemon=True).start()
+                            except Exception:
+                                self.send_response(400)
+                                self._set_cors()
+                                self.end_headers()
+
+                    # start server
+                    httpd = socketserver.TCPServer(("127.0.0.1", port), PairHandler)
+                    # open browser to the pairing page on the web server (assumes Web/ served at :8000)
+                    pair_url = f"http://localhost:8000/pair.html?token={token}&port={port}"
+                    try:
+                        webbrowser.open(pair_url)
+                    except Exception:
+                        pass
+                    # serve until pairing completes or timeout
+                    try:
+                        httpd.serve_forever()
+                    except Exception:
+                        pass
+
+                threading.Thread(target=start_pairing, daemon=True).start()
 
     # draw background
     if bg_image:
@@ -192,6 +290,25 @@ while running:
         pt = enc["pos"]
         color = (0, 255, 255) if not dm.encounter_states.get(idx, False) else (100, 100, 100)
         pygame.draw.circle(screen, color, (int(pt.x), int(pt.y)), 30)
+        # draw a small badge/icon if player has chosen an option for this encounter
+        choice = profile.get_choice(idx)
+        if choice is not None:
+            try:
+                sel = int(choice.get('selected', 0))
+            except Exception:
+                sel = 0
+            # small colored badge with number
+            badge_color = [(200, 120, 120), (120, 200, 120), (120, 160, 240)][sel % 3]
+            badge_pos = (int(pt.x + 28), int(pt.y - 28))
+            pygame.draw.circle(screen, badge_color, badge_pos, 12)
+            # number
+            try:
+                font = pygame.font.SysFont(None, 20)
+                txt = font.render(str(sel+1), True, (20, 20, 20))
+                txt_rect = txt.get_rect(center=badge_pos)
+                screen.blit(txt, txt_rect)
+            except Exception:
+                pass
 
     # AI DM intro
     dm.narrate_intro(screen)
@@ -204,37 +321,117 @@ while running:
                 if enc.get("type") == "dialogue":
                     # Dialogue event with character and player response
                     character = enc.get("character", "Stranger")
-                    prompt, responses, followups = ai_generate_dialogue(character)
-                    dm.show_message(screen, f"{character}: {prompt}", duration=2.5)
-                    # Show response options
-                    font = pygame.font.SysFont(None, 28)
-                    box_width = int(screen.get_width() * 0.8)
-                    box_x = (screen.get_width() - box_width) // 2
-                    box_y = 130
-                    box_height = 40 * len(responses) + 20
-                    box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
-                    pygame.draw.rect(screen, (40, 40, 40, 220), box_rect, border_radius=12)
-                    pygame.draw.rect(screen, (255, 255, 0), box_rect, width=2, border_radius=12)
-                    for i, resp in enumerate(responses):
-                        msg = font.render(f"{i+1}. {resp}", True, (200, 255, 200))
-                        msg_rect = msg.get_rect(midleft=(box_x + 24, box_y + 28 + i*36))
-                        screen.blit(msg, msg_rect)
-                    pygame.display.flip()
-                    # Wait for player to press 1/2/3...
-                    selected = None
-                    while selected is None:
-                        for event in pygame.event.get():
-                            if event.type == pygame.QUIT:
-                                pygame.quit()
-                                sys.exit()
-                            elif event.type == pygame.KEYDOWN:
-                                if pygame.K_1 <= event.key <= pygame.K_9:
-                                    num = event.key - pygame.K_1
-                                    if 0 <= num < len(responses):
-                                        selected = num
+                    dialogue = ai_generate_dialogue(character)
+                    prompt = dialogue["prompt"]
+                    options = dialogue["options"]
+                    loop_count = 0
+                    max_loops = 3
+                    keep_looping = True
+                    while keep_looping and loop_count < max_loops:
+                        dm.show_message(screen, f"{character}: {prompt}", duration=1.0)
+                        # Show response options with visual selection
+                        font = pygame.font.SysFont(None, 28)
+                        box_width = int(screen.get_width() * 0.8)
+                        box_x = (screen.get_width() - box_width) // 2
+                        box_y = 130
+                        box_height = 48 * len(options) + 20
+                        box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+                        # Draw box background
+                        s = pygame.Surface((box_rect.w, box_rect.h), pygame.SRCALPHA)
+                        s.fill((40, 40, 40, 220))
+                        screen.blit(s, (box_rect.x, box_rect.y))
+                        pygame.draw.rect(screen, (255, 255, 0), box_rect, width=2, border_radius=12)
+
+                        # selection state
+                        current_sel = 0
+                        # initialize selection from profile if present
+                        persisted = profile.get_choice(idx)
+                        if persisted is not None:
+                            try:
+                                current_sel = int(persisted.get('selected', 0))
+                            except Exception:
+                                current_sel = 0
+
+                        # draw options initially
+                        def render_options(highlight):
+                            for i, opt in enumerate(options):
+                                y = box_y + 16 + i*48
+                                opt_rect = pygame.Rect(box_x + 12, y, box_width - 24, 40)
+                                if i == highlight:
+                                    pygame.draw.rect(screen, (60, 90, 60, 180), opt_rect, border_radius=8)
+                                msg = font.render(f"{i+1}. {opt['text']}", True, (220, 255, 220) if i == highlight else (180, 220, 180))
+                                screen.blit(msg, (box_x + 28, y + 8))
+                            # instructions
+                            instr = font.render("Use ↑/↓ to move, Enter to choose, or press number key", True, (200,200,200))
+                            screen.blit(instr, (box_x + 20, box_y + box_rect.h - 28))
+                            pygame.display.flip()
+
+                        render_options(current_sel)
+
+                        # Wait for player choice with visual highlight
+                        selected = None
+                        while selected is None:
+                            for event in pygame.event.get():
+                                if event.type == pygame.QUIT:
+                                    pygame.quit()
+                                    sys.exit()
+                                elif event.type == pygame.KEYDOWN:
+                                    if event.key == pygame.K_UP:
+                                        current_sel = (current_sel - 1) % len(options)
+                                        # redraw
+                                        # redraw background area first
+                                        if 'bg_image' in globals() and bg_image:
+                                            bg_surf = pygame.transform.smoothscale(bg_image, (screen.get_width(), screen.get_height()))
+                                            screen.blit(bg_surf, box_rect, box_rect)
+                                        else:
+                                            pygame.draw.rect(screen, (0,0,0), box_rect)
+                                        pygame.draw.rect(screen, (255,255,0), box_rect, width=2, border_radius=12)
+                                        render_options(current_sel)
+                                    elif event.key == pygame.K_DOWN:
+                                        current_sel = (current_sel + 1) % len(options)
+                                        if 'bg_image' in globals() and bg_image:
+                                            bg_surf = pygame.transform.smoothscale(bg_image, (screen.get_width(), screen.get_height()))
+                                            screen.blit(bg_surf, box_rect, box_rect)
+                                        else:
+                                            pygame.draw.rect(screen, (0,0,0), box_rect)
+                                        pygame.draw.rect(screen, (255,255,0), box_rect, width=2, border_radius=12)
+                                        render_options(current_sel)
+                                    elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                                        selected = current_sel
                                         break
-                    # Show followup
-                    dm.show_message(screen, followups[selected], duration=2.5)
+                                    elif pygame.K_1 <= event.key <= pygame.K_9:
+                                        num = event.key - pygame.K_1
+                                        if 0 <= num < len(options):
+                                            selected = num
+                                            break
+                        # Show followup
+                        followup = options[selected].get('followup', '')
+                        dm.show_message(screen, followup, duration=1.4)
+                        # persist choice into profile and apply any effects
+                        try:
+                            profile.set_choice(idx, selected, options[selected].get('text', ''))
+                            eff = options[selected].get('effect')
+                            if isinstance(eff, dict):
+                                for kf, vf in eff.items():
+                                    profile.set_flag(kf, vf)
+                                # if path opened by choice, dynamically add path encounter
+                                if eff.get('path_open'):
+                                    if not any(enc.get('id') == 'path' for enc in encounter_points):
+                                        encounter_points.append({
+                                            "id": "path",
+                                            "pos": pygame.Vector2(screen.get_width() * 0.85, screen.get_height() * 0.3),
+                                            "type": "dialogue",
+                                            "character": "Gatekeeper"
+                                        })
+                        except Exception:
+                            pass
+                        # Decide whether to loop
+                        if options[selected].get('loop', False):
+                            prompt = followup
+                            loop_count += 1
+                            keep_looping = True
+                        else:
+                            keep_looping = False
                     dm.encounter_states[idx] = True
                 else:
                     # Minigame encounter as before

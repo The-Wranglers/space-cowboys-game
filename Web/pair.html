@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Space Cowboys — Pair Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Pair with Game</h1>
+    <p id="status">Preparing to pair...</p>
+    <p>If you're signed in on this page, your web profile will be sent to the game running on your computer.</p>
+    <p id="detail"></p>
+  </main>
+  <script>
+    function getQuery(name){
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    async function pair() {
+      const token = getQuery('token');
+      const port = getQuery('port');
+      document.getElementById('detail').textContent = `Token=${token} Port=${port}`;
+
+      // check for currentUserProfile in localStorage
+      let prof = null;
+      try { prof = JSON.parse(localStorage.getItem('currentUserProfile') || 'null'); } catch(e) { prof = null; }
+      if (!prof) {
+        document.getElementById('status').textContent = 'No web profile found — please log in first (use the Login page).';
+        return;
+      }
+
+      const url = `http://localhost:${port}/pair`;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token, profile: prof })
+        });
+        if (res.ok) {
+          document.getElementById('status').textContent = 'Successfully paired with game! You can return to the game.';
+        } else {
+          document.getElementById('status').textContent = 'Failed to pair with game — is the game running and expecting a pairing?';
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error connecting to local game pairing server: ' + err.message;
+      }
+    }
+
+    window.addEventListener('load', () => {
+      // Attempt to pair shortly after load
+      setTimeout(pair, 500);
+    });
+  </script>
+</body>
+</html>
