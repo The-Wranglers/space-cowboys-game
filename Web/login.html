@@ -5,12 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Space Cowboys — Login</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="assets/images/logo.png">
   <!-- Auth0 SPA SDK (CDN) -->
   <script src="https://cdn.auth0.com/js/auth0-spa-js/1.26.0/auth0-spa-js.production.js"></script>
 </head>
 <body>
-  <main class="container">
-    <h1>Space Cowboys — Login</h1>
+    <nav class="main-nav">
+        <div class="nav-content">
+            <div class="nav-left">
+                <a href="index.html" class="nav-logo">
+                    <img src="assets/images/logo.png" alt="Space Cowboys Logo">
+                    <span>Space Cowboys</span>
+                </a>
+                <div class="nav-tabs">
+                    <a href="index.html" class="nav-tab">Home</a>
+                    <a href="download.html" class="nav-tab">Download</a>
+                    <a href="wiki.html" class="nav-tab">Wiki</a>
+                </div>
+            </div>
+            <div class="nav-right">
+                <a href="login.html" class="nav-tab active">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
 
     <div id="content">
       <p id="status">Not authenticated</p>

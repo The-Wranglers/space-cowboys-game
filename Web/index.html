@@ -5,20 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Space Cowboys — Welcome</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="assets/images/logo.png">
 </head>
 <body>
-    <main class="container landing">
-        <h1>Space Cowboys</h1>
-
-        <p class="tagline">Embark on an epic space adventure</p>
-        
-        <div class="hero-buttons">
-            <a href="login.html" class="button primary">Log In</a>
-            <a href="#about" class="button secondary">Learn More</a>
+    <nav class="main-nav">
+        <div class="nav-content">
+            <div class="nav-left">
+                <a href="index.html" class="nav-logo">
+                    <img src="assets/images/logo.png" alt="Space Cowboys Logo">
+                    <span>Space Cowboys</span>
+                </a>
+                <div class="nav-tabs">
+                    <a href="index.html" class="nav-tab active">Home</a>
+                    <a href="download.html" class="nav-tab">Download</a>
+                    <a href="wiki.html" class="nav-tab">Wiki</a>
+                </div>
+            </div>
+            <div class="nav-right">
+                <a href="login.html" class="nav-login">Login</a>
+            </div>
         </div>
+    </nav>
 
+    <main class="container landing">
+        <h1>Home</h1>
         <section id="about" class="about-section">
             <h2>About the Game</h2>
+            <p class="tagline">Embark on an epic space adventure</p>
             <div class="features">
                 <div class="feature">
                     <h3>🚀 Space Adventure</h3>

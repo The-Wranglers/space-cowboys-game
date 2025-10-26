@@ -5,11 +5,37 @@
   --text:#e6eef8;
   --error:#ff4d4f;
   --success:#52c41a;
+  --nav-bg:rgba(15,23,36,0.95);
+  --nav-border:rgba(255,255,255,0.1);
+  --nav-hover:rgba(255,209,102,0.1);
 }
 
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter, UI-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;background:linear-gradient(180deg,var(--bg),#071122);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
-.container{width:min(780px,94vw);background:rgba(255,255,255,0.03);padding:28px;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+body{margin:0;font-family:Inter, UI-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;background:linear-gradient(180deg,var(--bg),#071122);color:var(--text);min-height:100vh}
+
+/* Navigation */
+.main-nav{position:fixed;top:0;left:0;right:0;background:var(--nav-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--nav-border);z-index:1000}
+.nav-content{max-width:1200px;margin:0 auto;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center}
+.nav-left{display:flex;align-items:center;gap:2rem}
+.nav-logo{display:flex;align-items:center;gap:0.75rem;text-decoration:none;color:var(--text)}
+.nav-logo img{width:40px;height:auto}
+.nav-logo span{font-size:1.25rem;font-weight:600}
+.nav-tabs{display:flex;gap:0.5rem}
+.nav-tab{padding:0.5rem 1rem;color:var(--text);text-decoration:none;border-radius:6px;transition:all 0.2s}
+.nav-tab:hover{background:var(--nav-hover)}
+.nav-tab.active{background:var(--nav-hover);color:var(--accent)}
+.nav-right{display:flex;align-items:center}
+.nav-login{padding:0.5rem 1rem;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:6px;transition:all 0.2s}
+.nav-login:hover{background:var(--accent);color:var(--bg)}
+.container{width:min(780px,94vw);background:rgba(255,255,255,0.03);padding:28px;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.6);margin:7rem auto 2rem}
+
+/* Content styles for all pages */
+.site-header{display:flex;align-items:center;gap:1.5rem;margin-bottom:2rem}
+.logo{flex-shrink:0}
+.logo img{width:100px;height:auto;display:block}
+.logo a{display:block;transition:opacity 0.2s}
+.logo a:hover{opacity:0.9}
+.site-title{font-size:2.5rem;margin:0;background:linear-gradient(45deg,var(--accent),#fff);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 2px 4px rgba(0,0,0,0.1)}
 
 /* Landing page styles */
 .landing{text-align:center}
