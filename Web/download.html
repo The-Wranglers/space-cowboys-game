@@ -22,7 +22,8 @@
                 </div>
             </div>
             <div class="nav-right">
-                <a href="login.html" class="nav-login">Login</a>
+                <!-- This anchor will be switched to a Profile button when a user is logged in -->
+                <a id="navAccount" href="login.html" class="nav-login">Login</a>
             </div>
         </div>
     </nav>
@@ -39,8 +40,8 @@
                         <li>Multiplayer support</li>
                         <li>All current maps included</li>
                     </ul>
-                    <a href="#" class="button primary">Download for Windows</a>
-                    <a href="#" class="button secondary">Download for Linux</a>
+                    <a id="downloadWin" href="#" class="button primary download-btn">Download for Windows</a>
+                    <a id="downloadLinux" href="#" class="button secondary download-btn">Download for Linux</a>
                 </div>
 
                 <div class="download-card">
@@ -56,5 +57,34 @@
             </div>
         </section>
     </main>
+        <script>
+            // Hide download buttons when no user is signed in (based on localStorage.currentUser).
+            (function(){
+                try {
+                    const buttons = document.querySelectorAll('.download-btn');
+                    const container = document.querySelector('.download-card');
+                    const user = localStorage.getItem('currentUser');
+
+                                if (!user) {
+                        buttons.forEach(b => b.style.display = 'none');
+
+                        if (container) {
+                            const notice = document.createElement('p');
+                            notice.style.marginTop = '12px';
+                            notice.style.color = 'var(--accent)';
+                            notice.innerHTML = 'Please <a href="login.html" style="color:var(--bg);background:var(--accent);padding:6px 10px;border-radius:6px;text-decoration:none">sign in</a> to download.';
+                            container.appendChild(notice);
+                        }
+                    }
+
+                    // Keep nav account label consistent across pages
+                    const navA = document.getElementById('navAccount');
+                    if (navA) {
+                                    if (user) { navA.textContent = 'Profile'; navA.href = 'profile.html'; }
+                        else { navA.textContent = 'Login'; navA.href = 'login.html'; }
+                    }
+                } catch (e) { /* ignore errors to avoid breaking the page */ }
+            })();
+        </script>
 </body>
 </html>

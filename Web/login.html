@@ -23,9 +23,10 @@
                     <a href="wiki.html" class="nav-tab">Wiki</a>
                 </div>
             </div>
-            <div class="nav-right">
-                <a href="login.html" class="nav-tab active">Login</a>
-            </div>
+      <div class="nav-right">
+        <!-- This anchor will be switched to a Profile button when a user is logged in -->
+        <a id="navAccount" href="login.html" class="nav-tab active">Login</a>
+      </div>
         </div>
     </nav>
 
@@ -51,6 +52,32 @@
 
         <div style="margin-top:10px">
           <button id="localLogin" type="submit">Use Credentials (demo)</button>
+        </div>
+      </form>
+
+      <div style="margin-top:8px; font-size:0.95rem">
+        <a href="#" id="showRegisterLink">Don't have an account? Create one</a>
+      </div>
+
+      <!-- Registration form (local/demo only) -->
+      <form id="registerForm" class="form" style="display:none; margin-top:12px" onsubmit="event.preventDefault(); handleRegister();">
+        <label class="field">
+          <span>Choose a username</span>
+          <input id="registerUsername" type="text" name="registerUsername" placeholder="new-username" autocomplete="username">
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <input id="registerPassword" type="password" name="registerPassword" placeholder="your-password" autocomplete="new-password">
+        </label>
+
+        <label class="field">
+          <span>Confirm password</span>
+          <input id="registerConfirm" type="password" name="registerConfirm" placeholder="confirm-password" autocomplete="new-password">
+        </label>
+
+        <div style="margin-top:10px">
+          <button id="createAccount" type="submit">Create Account</button>
         </div>
       </form>
 
@@ -144,9 +171,16 @@
         logoutBtn.style.display = 'inline-block';
         profileSection.style.display = 'block';
 
-        try {
-          const user = await auth0Client.getUser();
-          profileData.textContent = JSON.stringify(user, null, 2);
+          try {
+            const user = await auth0Client.getUser();
+            profileData.textContent = JSON.stringify(user, null, 2);
+            // Persist a light-weight flag and a profile blob so other pages can show a Profile button and details
+            try {
+              const id = user.email || user.name || user.sub || 'auth0-user';
+              localStorage.setItem('currentUser', id);
+              localStorage.setItem('currentUserProfile', JSON.stringify(user));
+            } catch (e) { /* ignore storage errors */ }
+            refreshNavAccount();
         } catch (err) {
           showError('Failed to get user profile: ' + (err.error_description || err.message || 'Unknown error'));
         }
@@ -156,6 +190,8 @@
         logoutBtn.style.display = 'none';
         profileSection.style.display = 'none';
         profileData.textContent = '';
+        // Do not automatically remove localStorage here; logout flow will clear it.
+        refreshNavAccount();
       }
     }
 
@@ -177,6 +213,9 @@
         await auth0Client.logout({
           logoutParams: { returnTo: window.location.origin }
         });
+        // Remove our local marker as well
+        try { localStorage.removeItem('currentUser'); } catch (e) {}
+        refreshNavAccount();
         updateUI();
       } catch (err) {
         showError('Logout failed: ' + (err.error_description || err.message || 'Unknown error'));
@@ -204,7 +243,66 @@
       document.getElementById('profileData').textContent = JSON.stringify(profileData, null, 2);
       document.getElementById('profile').style.display = 'block';
       document.getElementById('status').textContent = 'Demo credentials shown (not authenticated)';
+      // Mark the user as logged-in for UI purposes (local/demo only)
+      try {
+        localStorage.setItem('currentUser', username);
+        localStorage.setItem('currentUserProfile', JSON.stringify({ demoUsername: username }));
+      } catch (e) { /* ignore */ }
+      refreshNavAccount();
     }
+
+    // Simple client-side registration for demo/local usage.
+    // Stores credentials in localStorage under key 'users' (demo only — not secure).
+    function handleRegister() {
+      const username = document.getElementById('registerUsername')?.value || '';
+      const password = document.getElementById('registerPassword')?.value || '';
+      const confirm = document.getElementById('registerConfirm')?.value || '';
+      if (!username) { showError('Please enter a username'); return; }
+      if (!password) { showError('Please enter a password'); return; }
+      if (password !== confirm) { showError('Passwords do not match'); return; }
+
+      // load existing users
+      let users = {};
+      try { users = JSON.parse(localStorage.getItem('users') || '{}'); } catch (e) { users = {}; }
+      if (users[username]) { showError('That username is already taken'); return; }
+      // NOTE: In a real app never store plain passwords. This is demo-only.
+      users[username] = { password: password };
+      try { localStorage.setItem('users', JSON.stringify(users)); } catch (e) { showError('Failed to save account'); return; }
+
+      // Automatically sign-in the created user for UI purposes
+  try { localStorage.setItem('currentUser', username); localStorage.setItem('currentUserProfile', JSON.stringify({ demoUsername: username })); } catch (e) {}
+  document.getElementById('profileData').textContent = JSON.stringify({ demoUsername: username }, null, 2);
+      document.getElementById('profile').style.display = 'block';
+      document.getElementById('status').textContent = 'Account created — demo signed in';
+  document.getElementById('registerForm').style.display = 'none';
+      refreshNavAccount();
+    }
+
+    // Update the nav account anchor based on whether localStorage.currentUser is set
+    function refreshNavAccount() {
+      const a = document.getElementById('navAccount');
+      if (!a) return;
+      let user = null;
+      try { user = localStorage.getItem('currentUser'); } catch (e) { user = null; }
+      if (user) {
+        a.textContent = 'Profile';
+        a.href = 'profile.html';
+        a.classList.remove('nav-tab');
+        a.classList.add('nav-tab');
+      } else {
+        a.textContent = 'Login';
+        a.href = 'login.html';
+      }
+    }
+
+    // Toggle register form link
+    document.getElementById('showRegisterLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      const f = document.getElementById('registerForm');
+      if (!f) return;
+      f.style.display = (f.style.display === 'none' || f.style.display === '') ? 'flex' : 'none';
+      refreshNavAccount();
+    });
 
     // init
     window.addEventListener('load', () => {

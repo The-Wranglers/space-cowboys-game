@@ -22,7 +22,8 @@
                 </div>
             </div>
             <div class="nav-right">
-                <a href="login.html" class="nav-login">Login</a>
+                <!-- This anchor will be switched to a Profile button when a user is logged in -->
+                <a id="navAccount" href="login.html" class="nav-login">Login</a>
             </div>
         </div>
     </nav>
@@ -49,5 +50,22 @@
         </section>
     </main>
   </script>
+    <script>
+        // Replace the Login link with a Profile link when a 'currentUser' is present in localStorage.
+            (function refreshNavAccount(){
+            try {
+                const a = document.getElementById('navAccount');
+                if (!a) return;
+                const user = localStorage.getItem('currentUser');
+                if (user) {
+                        a.textContent = 'Profile';
+                        a.href = 'profile.html';
+                } else {
+                    a.textContent = 'Login';
+                    a.href = 'login.html';
+                }
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
 </body>
 </html>

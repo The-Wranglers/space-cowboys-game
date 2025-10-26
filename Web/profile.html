@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Space Cowboys — Profile</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="assets/images/logo.png">
+</head>
+<body>
+  <nav class="main-nav">
+    <div class="nav-content">
+      <div class="nav-left">
+        <a href="index.html" class="nav-logo">
+          <img src="assets/images/logo.png" alt="Space Cowboys Logo">
+          <span>Space Cowboys</span>
+        </a>
+        <div class="nav-tabs">
+          <a href="index.html" class="nav-tab">Home</a>
+          <a href="download.html" class="nav-tab">Download</a>
+          <a href="wiki.html" class="nav-tab">Wiki</a>
+        </div>
+      </div>
+      <div class="nav-right">
+        <a id="navAccount" href="login.html" class="nav-login">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="profile-section">
+      <h1>Your Profile</h1>
+      <div id="profileContent">
+        <p id="notSignedIn" style="color:var(--accent)">You are not signed in. <a href="login.html" style="color:var(--bg);background:var(--accent);padding:6px 10px;border-radius:6px;text-decoration:none">Sign in</a></p>
+        <section id="profileCard" style="display:none">
+          <h2 id="profileTitle">Profile</h2>
+          <pre id="profileJson"></pre>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="signOutBtn" class="button">Sign out</button>
+            <button id="clearLocalBtn" class="button secondary">Clear local session</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Show profile info from localStorage and provide sign out action.
+    (function(){
+      try {
+        const profileRaw = localStorage.getItem('currentUserProfile');
+        const id = localStorage.getItem('currentUser');
+        const profileCard = document.getElementById('profileCard');
+        const notSigned = document.getElementById('notSignedIn');
+        const profileJson = document.getElementById('profileJson');
+
+        function refreshNav() {
+          const a = document.getElementById('navAccount');
+          if (!a) return;
+          const u = localStorage.getItem('currentUser');
+          if (u) { a.textContent = 'Profile'; a.href = 'profile.html'; }
+          else { a.textContent = 'Login'; a.href = 'login.html'; }
+        }
+
+        if (profileRaw) {
+          const parsed = JSON.parse(profileRaw);
+          profileJson.textContent = JSON.stringify(parsed, null, 2);
+          profileCard.style.display = 'block';
+          notSigned.style.display = 'none';
+        } else if (id) {
+          profileJson.textContent = JSON.stringify({ id: id }, null, 2);
+          profileCard.style.display = 'block';
+          notSigned.style.display = 'none';
+        } else {
+          profileCard.style.display = 'none';
+          notSigned.style.display = 'block';
+        }
+
+        refreshNav();
+
+        document.getElementById('signOutBtn').addEventListener('click', () => {
+          try { localStorage.removeItem('currentUser'); localStorage.removeItem('currentUserProfile'); } catch (e) {}
+          // Redirect to home after sign out
+          window.location.href = 'index.html';
+        });
+
+        document.getElementById('clearLocalBtn').addEventListener('click', () => {
+          // Clear any local demo users but do not attempt to log out of Auth0
+          try { localStorage.removeItem('users'); localStorage.removeItem('currentUser'); localStorage.removeItem('currentUserProfile'); } catch (e) {}
+          window.location.href = 'index.html';
+        });
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+</body>
+</html>
