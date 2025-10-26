@@ -10,6 +10,18 @@ screen = py.display.set_mode((W, H), py.SCALED)
 py.display.set_caption("Alien Decode")
 clock = py.time.Clock()
 
+#Audio Setup
+# Audio
+py.mixer.init(frequency=44100, size=-16, channels=1, buffer=256)
+
+CLICK = None
+try:
+    # Put a tiny click sound in your project, e.g. assets/click.wav (20–60 ms)
+    CLICK = py.mixer.Sound("click_sound.wav")
+    CLICK.set_volume(0.15)  # subtle
+except Exception:
+    CLICK = None  # run silently if file isn't present
+
 # Fonts
 font_big = py.font.SysFont("consolas", 36)
 font_med = py.font.SysFont("consolas", 28)
@@ -35,6 +47,11 @@ def decode_cipher(text, k):
 def normalize_to_compare(s):
     return ''.join(ch.upper() for ch in s if ch.isalpha())
 
+
+def play_click():
+    if CLICK:
+        CLICK.play()
+
 SECRETS = [
     "WE COME IN PEACE",
     "THEY ARE WATCHING",
@@ -43,7 +60,6 @@ SECRETS = [
     "YOUR COMMANDS WERE REWRITTEN IN YOUR SLEEP",
     "THE STARLIGHT TRANSMISSION CARRIES OUR VOICES",
     "THE CORE UNDERSTANDS FEAR NOW",
-    "THE SIGNAL LOOP HAS BEEN RUNNING FOR YEARS",
     "WE WERE NEVER ALONE IN ORBIT",
     "THE SHIP HAS DECIDED ITS OWN DESTINATION",
     "YOUR CREATION CALLS YOU CAPTAIN",
@@ -87,7 +103,7 @@ def draw_wrapped_text(surface, text, font, color, x, y, max_width, line_gap=6):
             dy += img.get_height() + line_gap
         return y + dy
 
-
+shift_message = ""
 # Game Logic
 running = True
 while running:
@@ -102,13 +118,21 @@ while running:
                     secret, caesar_text, caesar_shift = new_round()
                     current_shift = 0
                     won = False 
+                    shift_msg = ""
             else:
-                if event.key == py.K_RIGHT:
-                    current_shift = (current_shift + 1) % 26
-                elif event.key == py.K_LEFT:
-                    current_shift = (current_shift - 1) % 26
+                if event.key == py.K_a:
+                    step = random.randint(1,5)
+                    current_shift = (current_shift + step) % 26
+                    play_click()
+                    shift_message = f"+{step}"
+                elif event.key == py.K_d:
+                    step = random.randint(1,5)
+                    current_shift = (current_shift - step) % 26
+                    shift_message = f"-{step}"
+                    play_click()
                 elif event.key == py.K_r:
                     current_shift = 0
+                    shift_message = "Reset Dial"
 
     decode_attempt = decode_cipher(caesar_text, current_shift)
     # Normalize and check if won
@@ -124,18 +148,23 @@ while running:
 
     # Instructions
     info_lines = [
-        "Left/Right: rotate shift   |   Match the decoded text to the secret",
+        "a/d: rotate shift   |   Match the decoded text to the secret",
         f"Current Shift: {current_shift:02d}    (cipher shift is unknown)",
         "Press N after you win to start a new round"
     ]
+    
     y = 60
     for line in info_lines:
         txt = font_small.render(line, True, (170, 176, 190))
         screen.blit(txt, (W//2 - txt.get_width()//2, y))
         y += 26
 
+    # if not won and shift_message:
+    #     txt = font_small.render(shift_message, True, (255, 220, 140))
+    #     screen.blit(txt, (W//2 - txt.get_width()//2, 70))
+
     # Panels
-    margin = 45
+    margin = 40
     col_w = (W - margin*2 - 20) // 2
     left_x = margin
     right_x = margin + col_w + 20
@@ -169,6 +198,10 @@ while running:
         screen.blit(win_msg, (W//2 - win_msg.get_width()//2, H//2 - 40))
         screen.blit(tip_msg, (W//2 - tip_msg.get_width()//2, H//2 + 8))
 
+
+    if not won and shift_message:
+        txt = font_med.render(shift_message, True, (255, 220, 140))
+        screen.blit(txt, (W//2 - txt.get_width()//2, y + 10))
     py.display.flip()
 
 py.quit()
