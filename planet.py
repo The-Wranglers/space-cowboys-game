@@ -70,3 +70,11 @@ class Planet:
 
     def draw(self, screen: pygame.Surface) -> None:
         screen.blit(self.current_image, self.rect)
+
+
+# Example usage for launching a map from a planet:
+# from DanielsWorld.adventure_map import AdventureMap
+# from DanielsWorld.maps import DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame
+# my_map = AdventureMap("/path/to/your_map_image.png")
+# my_map.run(DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame)
+# You can pass custom encounter/obstacle generators to AdventureMap if desired.

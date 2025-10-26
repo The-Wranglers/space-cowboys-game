@@ -1,4 +1,11 @@
 import pygame
+from DanielsWorld.adventure_map import AdventureMap
+from DanielsWorld.maps import DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame
+import os
+
+
+# Path to World1Map.png (adjust if needed)
+WORLD1_MAP_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'images', 'World1Map.png')
 
 
 class PlayScreen:
@@ -113,16 +120,14 @@ class PlayScreen:
 
             # click behavior
             if hovered and mouse_click:
-                # you can branch by planet["id"]
                 planet_id = planet["id"]
                 print(f"{planet_id} clicked")
-
-                # example: jump to sheriff_level if planet1 clicked
-                if planet_id == "planet1" and self.game_state_callback:
+                if planet_id == "planet1":
+                    # Launch AdventureMap for planet1 with World1Map.png
+                    adventure = AdventureMap(WORLD1_MAP_PATH)
+                    adventure.run(DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame)
+                elif planet_id == "planet2" and self.game_state_callback:
                     self.game_state_callback("sheriff_level")
-
-                # OR: update dialog text instead of jumping screens
-                # self.dialog_text = f"You selected {planet_id}"
 
     def draw(self, screen):
         """
