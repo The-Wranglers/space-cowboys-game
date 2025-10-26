@@ -1,11 +1,23 @@
 import pygame
 from DanielsWorld.adventure_map import AdventureMap
 from DanielsWorld.maps import DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame
+from adventure_maps import WORLD_MAPS, init_maps
+from utils.progress_manager import ProgressManager
 import os
 
+# Initialize the adventure maps system
+init_maps()
 
-# Path to World1Map.png (adjust if needed)
-WORLD1_MAP_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'images', 'World1Map.png')
+# Get the progress manager instance
+progress_manager = ProgressManager.get_instance()
+
+# Map planets to their respective world maps
+PLANET_MAPS = {
+    'planet1': WORLD_MAPS['world1'],
+    'planet2': WORLD_MAPS['world2'],
+    'planet3': WORLD_MAPS['world3'],
+    'planet4': WORLD_MAPS['world4']
+}
 
 
 class PlayScreen:
@@ -29,6 +41,14 @@ class PlayScreen:
         self.font = pygame.font.Font(None, base_font_size)
         self.text_color = (255, 255, 255)
         self.dialog_text = "Select a planet to get started"
+        
+        # Planet descriptions
+        self.planet_descriptions = {
+            "planet1": "A frontier world filled with space pirates and trading posts. A good place to start your adventure!",
+            "planet2": "An industrial planet with treacherous asteroid fields and heavily guarded space stations.",
+            "planet3": "A mysterious world of black markets and elite security forces. Danger and opportunity await!",
+            "planet4": "The final frontier - face your greatest challenges and prove your worth as a space cowboy!"
+        }
 
         # clickable 'planets' as circle hitboxes.
         # YOU will tune these numbers to match where the planets are drawn.
@@ -131,6 +151,24 @@ class PlayScreen:
             if hovered:
                 color = (255, 255, 100)  # brighter when hovered
                 width = 4
+                # Get progress for this world
+                world_id = f"world{planet['id'][-1]}"  # Convert planet1 to world1, etc.
+                world_progress = progress_manager.get_world_progress(world_id)
+                world_map = PLANET_MAPS.get(planet["id"])
+                
+                if world_progress and world_map:
+                    completed = len(world_progress.completed_encounters)
+                    total = len(world_map['encounters'])
+                    combat_wins = world_progress.stats['combat_wins']
+                    
+                    # Show description and progress
+                    self.dialog_text = (
+                        f"{self.planet_descriptions.get(planet['id'], '')}\n"
+                        f"Progress: {completed}/{total} encounters completed | "
+                        f"Combat Wins: {combat_wins}"
+                    )
+                else:
+                    self.dialog_text = self.planet_descriptions.get(planet["id"], "Select a planet to get started")
             else:
                 color = (255, 255, 255)
                 width = 2
@@ -142,11 +180,29 @@ class PlayScreen:
             if hovered and mouse_click:
                 planet_id = planet["id"]
                 print(f"{planet_id} clicked")
-                if planet_id == "planet1":
-                    # Launch AdventureMap for planet1 with World1Map.png
-                    adventure = AdventureMap(WORLD1_MAP_PATH)
+                
+                # Get the corresponding world map for this planet
+                if planet_id in PLANET_MAPS:
+                    world_id = f"world{planet_id[-1]}"  # Convert planet1 to world1, etc.
+                    world_map = PLANET_MAPS[planet_id]
+                    
+                    # Set the current world in progress manager
+                    progress_manager.set_current_world(world_id)
+                    
+                    # Load progress for this world
+                    world_progress = progress_manager.get_world_progress(world_id)
+                    
+                    # Update the description with progress info
+                    completed = len(world_progress.completed_encounters)
+                    total = len(world_map['encounters'])
+                    self.dialog_text = f"{self.planet_descriptions[planet_id]}\nProgress: {completed}/{total} encounters completed"
+                    
+                    # Launch the adventure map
+                    adventure = AdventureMap(world_map['bg_image'])
                     adventure.run(DungeonMaster, ai_generate_dialogue, run_sebs_minigame, run_presleyworld_minigame)
-                elif planet_id == "planet2" and self.game_state_callback:
+                
+                # Keep the sheriff level option for planet2 as an alternate path
+                if planet_id == "planet2" and self.game_state_callback:
                     self.game_state_callback("sheriff_level")
 
     def _compute_normalized_planets(self):

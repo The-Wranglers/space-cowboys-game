@@ -88,13 +88,10 @@ dead_image = dead_image_original
 # Load player directional images
 for direction in ['w', 'a', 's', 'd']:
     try:
-<<<<<<< HEAD
-=======
         background_img_path = f"{project_root}assets/images/marsBackground.png"
         dead_image_path = f"{project_root}assets/images/deadBara.png"
         enemy_image_path = f"{project_root}assets/images/octopusNormal.png"
         damaged_enemy_image_path = f"{project_root}assets/images/octopusDamaged.png"
->>>>>>> 64baf86 (poopoop)
         img_path = f"{project_root}assets/images/{direction}Capy.png"
         player_images_original[direction] = pygame.image.load(img_path)
         player_images[direction] = player_images_original[direction]
@@ -169,18 +166,15 @@ playerDead = False
 displayDead = False
 freeze = False
 count = 0
-<<<<<<< HEAD
 # Spawn first target (enemy) using normalized coordinates
 norm_Xtarget = 0.9  # 90% of screen width
 norm_Ytarget = 0.9  # 90% of screen height
 Xtarget = int(norm_Xtarget * screen.get_width())
 Ytarget = int(norm_Ytarget * screen.get_height())
-=======
 target_alive = True
 # Spawn first target (enemy)
 Xtarget = (screen.get_width() - 100)
 Ytarget = (screen.get_height() - 100)
->>>>>>> 64baf86 (poopoop)
 
 # Enemy dodge direction control
 dodge_timer = 0
@@ -336,7 +330,6 @@ while running:
     if target_killed:
         target_alive = False
         counter += dt
-<<<<<<< HEAD
         if counter >= 0.5:
             # Generate normalized random position
             norm_Xtarget = random.uniform(0.1, 0.9)
@@ -344,14 +337,12 @@ while running:
             # Convert to screen coordinates
             Xtarget = int(norm_Xtarget * screen.get_width())
             Ytarget = int(norm_Ytarget * screen.get_height())
-=======
         
         if counter >= 1.0:
             enemy_health -= 1
             if enemy_health < 0: enemyActuallyDead = True
             Xtarget = random.randint(100, screen.get_width() - 100)
             Ytarget = random.randint(100, screen.get_height() - 100)
->>>>>>> 64baf86 (poopoop)
             target_alive = True
             target_killed = False
             counter = 0
@@ -378,10 +369,8 @@ while running:
         damaged_enemy_rect = damaged_enemy_image.get_rect(center=(Xtarget, Ytarget))
         screen.blit(damaged_enemy_image, damaged_enemy_rect)
 
-<<<<<<< HEAD
     # Draw player bullets with relative size
     bullet_radius = denormalize_radius(0.01, screen)  # 1% of screen size
-=======
     bar_width = 100
     bar_height = 10
     bar_x = Xtarget - bar_width / 2
@@ -391,7 +380,6 @@ while running:
     pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, bar_width * health_ratio, bar_height))
 
     # Player bullets
->>>>>>> 64baf86 (poopoop)
     node = stack.top
     while node:
         pygame.draw.circle(screen, "yellow", (int(node.x), int(node.y)), int(bullet_radius))

@@ -7,10 +7,12 @@ Each map has:
   - encounter type
   - difficulty level
   - any special parameters
+Progress for each map is tracked separately via the ProgressManager.
 """
 import os
 import pygame
 from utils.ui_scaling import normalize_point, normalize_radius, get_ref_size
+from utils.progress_manager import ProgressManager
 
 # Constants
 MAPS_DIR = os.path.join('assets', 'images', 'maps')
