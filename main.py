@@ -1,5 +1,5 @@
 import pygame
-
+from mainMenu import MainMenu
 # pygame setup
 pygame.init()
 screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
@@ -21,18 +21,11 @@ while running:
     screen.fill("black")
 
     # RENDER YOUR GAME HERE
-    pygame.draw.circle(screen, "red", player_pos, 40)
 
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_w]:
-        player_pos.y -= 300 * dt
-    if keys[pygame.K_s]:
-        player_pos.y += 300 * dt
-    if keys[pygame.K_a]:
-        player_pos.x -= 300 * dt
-    if keys[pygame.K_d]:
-        player_pos.x += 300 * dt
-
+    # Load main menu
+    mm = MainMenu()
+    # load main menu image on the screen
+    mm.load_main_menu(screen)
     # flip() the display to put your work on screen
     pygame.display.flip()
 
