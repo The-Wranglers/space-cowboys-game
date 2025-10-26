@@ -4,6 +4,18 @@ import os
 from pathlib import Path
 import random
 from player_profile import PlayerProfile
+import importlib
+import logging
+
+# logger to report which encounter generator was used and the final placements
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+# Ensure project root is importable so DanielsWorld.encounters_config can be imported
+project_root = Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0, str(project_root))
 
 class AdventureMap:
     def __init__(self, map_image_path, window_size=(1280, 720), window_title="Adventure Map",
@@ -23,7 +35,43 @@ class AdventureMap:
         self.player_pos = pygame.Vector2(self.screen.get_width() / 2, self.screen.get_height() / 2)
         self.player_rect = self.current_player_image.get_rect(center=self.player_pos)
         self.profile = PlayerProfile()
-        self.encounter_points = encounter_generator(self.screen) if encounter_generator else self.default_encounters()
+        # If an encounter_generator was explicitly provided, use it. Otherwise try to
+        # import `DanielsWorld.encounters_config.generate_encounters(screen)` and use that.
+        if encounter_generator:
+            self.encounter_points = encounter_generator(self.screen)
+            self._encounter_source = 'custom_generator'
+        else:
+            try:
+                enc_mod = importlib.import_module('DanielsWorld.encounters_config')
+                if hasattr(enc_mod, 'generate_encounters'):
+                    self.encounter_points = enc_mod.generate_encounters(self.screen)
+                    self._encounter_source = 'DanielsWorld.encounters_config:generate_encounters'
+                elif hasattr(enc_mod, 'encounter_generator'):
+                    # support alternate name
+                    self.encounter_points = enc_mod.encounter_generator(self.screen)
+                    self._encounter_source = 'DanielsWorld.encounters_config:encounter_generator'
+                else:
+                    self.encounter_points = self.default_encounters()
+                    self._encounter_source = 'default_encounters'
+            except Exception:
+                # fallback to built-in defaults
+                self.encounter_points = self.default_encounters()
+                self._encounter_source = 'default_encounters'
+
+        # Log which source produced the encounter points and enumerate them for debugging
+        try:
+            logger.info("Encounter generator source: %s", getattr(self, '_encounter_source', 'unknown'))
+            for i, enc in enumerate(self.encounter_points):
+                pos = enc.get('pos')
+                # pos may be a pygame.Vector2; present as tuple
+                if hasattr(pos, 'x') and hasattr(pos, 'y'):
+                    pos_repr = f"({int(pos.x)},{int(pos.y)})"
+                else:
+                    pos_repr = str(pos)
+                logger.info("Encounter %d: id=%s type=%s pos=%s", i, enc.get('id'), enc.get('type'), pos_repr)
+        except Exception:
+            # Logging should never crash initialization
+            pass
         self.obstacles = obstacle_generator(self.screen) if obstacle_generator else []
         self.dm = None  # DungeonMaster instance, set in run()
 

@@ -30,9 +30,10 @@ class PlayScreen:
         # YOU will tune these numbers to match where the planets are drawn.
         # pos: (x, y), radius: int, id: string
         self.planets = [
-            {"pos": (200, 100), "radius": 50, "id": "planet1"},
-            {"pos": (500, 360), "radius": 60, "id": "planet2"},
-            {"pos": (1150, 370), "radius": 65, "id": "planet3"},
+            {"pos": (92, 75), "radius": 60, "id": "planet1"},
+            {"pos": (475, 330), "radius": 55, "id": "planet2"},
+            {"pos": (865, 160), "radius": 45, "id": "planet3"},
+            {"pos": (1145, 355), "radius": 85, "id": "planet4"},
         ]
 
     def _wrap_text(self, text, max_width):
