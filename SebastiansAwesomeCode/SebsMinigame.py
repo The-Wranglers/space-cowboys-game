@@ -138,7 +138,10 @@ def scale_images(screen_height):
 scale_images(screen.get_height())
 
 # Store normalized coordinates (0-1 range) using reference size
-norm_cowboy_pos = normalize_point(100, 100, (REF_WIDTH, REF_HEIGHT))
+# normalize_point returns a tuple; we need a mutable sequence because the code
+# updates the normalized coordinates in-place (e.g., norm_cowboy_pos[0] += ...).
+# Convert to list so item assignment is allowed.
+norm_cowboy_pos = list(normalize_point(100, 100, (REF_WIDTH, REF_HEIGHT)))
 cowboy_pos = list(denormalize_point(norm_cowboy_pos[0], norm_cowboy_pos[1], screen))
 player_rect = current_player_image.get_rect(center=cowboy_pos)
 stack = LinkedListStack()       # Player bullets

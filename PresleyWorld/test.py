@@ -3,6 +3,14 @@ import random
 import math
 
 # pygame setup
+import os
+import sys
+
+# Ensure project root is on sys.path so `from utils...` imports work when running
+# this script directly.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 py.init()
 from utils.window_state import WindowState
 window_state = WindowState.get_instance()
@@ -138,7 +146,8 @@ while running:
                     secret, caesar_text, caesar_shift = new_round()
                     current_shift = 0
                     won = False 
-                    shift_msg = ""
+                    # keep variable name consistent
+                    shift_message = ""
             else:
                 if event.key == py.K_a:
                     step = random.randint(1,5)
@@ -180,7 +189,8 @@ while running:
     y = 60
     for line in info_lines:
         txt = font_small.render(line, True, (170, 176, 190))
-        screen.blit(txt, (W//2 - txt.get_width()//2, y))
+        # Use current screen width for centering (W was undefined)
+        screen.blit(txt, (screen_width//2 - txt.get_width()//2, y))
         y += 26
 
     # if not won and shift_message:
@@ -189,11 +199,11 @@ while running:
 
     # Panels
     margin = 40
-    col_w = (W - margin*2 - 20) // 2
+    col_w = (screen_width - margin*2 - 20) // 2
     left_x = margin
     right_x = margin + col_w + 20
     top_y = 150
-    box_h = H - top_y - margin
+    box_h = screen_height - top_y - margin
 
     # Boxes
     py.draw.rect(screen, (30, 36, 54), (left_x, top_y, col_w, box_h), border_radius=12)
