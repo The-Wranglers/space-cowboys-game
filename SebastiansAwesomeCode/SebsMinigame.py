@@ -156,8 +156,8 @@ player_rect = current_player_image.get_rect(center=cowboy_pos)
 stack = LinkedListStack()       # Player bullets
 enemy_stack = LinkedListStack() # Enemy bullets
 
-bulletSpeed = 600
-enemyBulletSpeed = 400
+bulletSpeed = 750
+enemyBulletSpeed = 600
 player_speed = 300
 enemy_speed = 150
 target_alive = True 
@@ -342,8 +342,6 @@ while running:
             # Convert to screen coordinates
             Xtarget = int(norm_Xtarget * screen.get_width())
             Ytarget = int(norm_Ytarget * screen.get_height())
-        
-        if counter >= 1.0:
             enemy_health -= 1
             if enemy_health < 0: enemyActuallyDead = True
             Xtarget = random.randint(100, screen.get_width() - 100)
@@ -375,7 +373,7 @@ while running:
         screen.blit(damaged_enemy_image, damaged_enemy_rect)
 
     # Draw player bullets with relative size
-    bullet_radius = denormalize_radius(0.01, screen)  # 1% of screen size
+    bullet_radius = denormalize_radius(0.0075, screen)  # 1% of screen size
     bar_width = 100
     bar_height = 10
     bar_x = Xtarget - bar_width / 2
