@@ -55,6 +55,7 @@ project_root = __file__.rsplit('SebastiansAwesomeCode', 1)[0]
 player_images = {}
 for direction in ['w', 'a', 's', 'd']:
     try:
+        background_img_path = f"{project_root}assets/images/marsBackground.jpg"
         img_path = f"{project_root}assets/images/{direction}Capy.png"
         player_images[direction] = pygame.image.load(img_path)
     except Exception as e:
@@ -93,6 +94,7 @@ while running:
     dt = clock.tick(60) / 1000
     shoot_cooldown += dt
     dodge_timer += dt
+  
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -197,7 +199,7 @@ while running:
             running = False
         node = node.next
 
-    # Respawn target if killed
+    # Respawn target if killedd
     if target_killed:
         counter += dt
         if counter >= 0.5:
@@ -209,6 +211,13 @@ while running:
 
     # Draw everything
     screen.fill("white")
+    background_img = pygame.image.load(background_img_path).convert()
+    scale_x = screen.get_width() / background_img.get_width()
+    scale_y = screen.get_height() / background_img.get_height()
+    scale = min(scale_x, scale_y)  # keeps aspect ratio
+    background_scaled = pygame.transform.smoothscale_by(background_img, scale)
+    screen.blit(background_scaled, (0, 0))
+
     # Draw player character using current image
     screen.blit(current_player_image, player_rect)
     if target_alive:
