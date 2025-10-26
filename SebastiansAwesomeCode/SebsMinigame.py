@@ -1,3 +1,4 @@
+from gc import freeze
 import pygame
 import math
 import random
@@ -56,11 +57,17 @@ player_images = {}
 for direction in ['w', 'a', 's', 'd']:
     try:
         background_img_path = f"{project_root}assets/images/marsBackground.jpg"
+        dead_image_path = f"{project_root}assets/images/deadBara.png"
         img_path = f"{project_root}assets/images/{direction}Capy.png"
         player_images[direction] = pygame.image.load(img_path)
     except Exception as e:
         print(f"Failed to load player image {direction}Capy.png: {e}", file=sys.stderr)
-
+    try:
+        dead_image = pygame.image.load(dead_image_path)
+    except Exception as e:
+        print(f"Failed to load deadBara.png: {e}", file=sys.stderr)
+        dead_image = pygame.Surface((100, 100))
+        dead_image.fill("gray")
 # Default player image (facing left)
 current_player_image = player_images.get('a')  # aCapy.png is the default
 if not current_player_image:  # Fallback if image loading failed
@@ -68,7 +75,7 @@ if not current_player_image:  # Fallback if image loading failed
     current_player_image = pygame.Surface((100, 100))  # Create a placeholder surface
     current_player_image.fill("brown")
 
-cowboy_pos = [screen.get_width() // 2, screen.get_height() // 2]
+cowboy_pos = [100, 100]
 player_rect = current_player_image.get_rect(center=cowboy_pos)
 stack = LinkedListStack()       # Player bullets
 enemy_stack = LinkedListStack() # Enemy bullets
@@ -81,10 +88,13 @@ target_alive = True
 target_killed = False
 counter = 0
 shoot_cooldown = 0
-
+playerDead = False
+displayDead = False
+freeze = False
+count = 0
 # Spawn first target (enemy)
-Xtarget = random.randint(100, screen.get_width() - 100)
-Ytarget = random.randint(100, screen.get_height() - 100)
+Xtarget = (screen.get_width() - 100)
+Ytarget = (screen.get_height() - 100)
 
 # Enemy dodge direction control
 dodge_timer = 0
@@ -130,10 +140,19 @@ while running:
         cowboy_pos[0] += player_speed * dt
         current_player_image = player_images.get('d', current_player_image)
         moved = True
+    if keys[pygame.K_q] and playerDead:
+        running = False
+
+    # ✅ Keep player inside screen
+    cowboy_pos[0] = max(50, min(screen.get_width() - 50, cowboy_pos[0]))
+    cowboy_pos[1] = max(50, min(screen.get_height() - 50, cowboy_pos[1]))
     
     # Update player rectangle position
     player_rect.center = cowboy_pos
 
+    if playerDead: 
+        current_player_image = dead_image
+        #current_player_image = player_images.get('deadBara.jpg')
     # === Enemy Movement (Smart AI) ===
     # Move toward the player
     dx = cowboy_pos[0] - Xtarget
@@ -196,7 +215,7 @@ while running:
     while node:
         if math.hypot(node.x - cowboy_pos[0], node.y - cowboy_pos[1]) < 50:
             print("💀 You got hit!")
-            running = False
+            playerDead = True
         node = node.next
 
     # Respawn target if killedd
@@ -236,7 +255,13 @@ while running:
     while node:
         pygame.draw.circle(screen, "red", (int(node.x), int(node.y)), 8)
         node = node.next
- 
-    pygame.display.flip()
+    if not freeze:
+        pygame.display.flip()
+        if playerDead: 
+            count += dt
+            if count >= 0.2:
+                freeze = True
+    if playerDead:
+        displayDead = True
 
 pygame.quit()
