@@ -33,7 +33,6 @@ class SpaceCowboyGame:
         """Render everything to the screen."""
         self.screen.fill("black")
         self.main_menu.load_main_menu(self.screen)
-        self.main_menu.load_options(self.screen)
         pygame.display.flip()
 
     def run(self):
