@@ -2,10 +2,6 @@ import pygame as py
 import random
 import math
 
-DIAL_SIZE = 260        # overall dial size
-POINTER_SIZE = 80      # size for the pointer image
-DEG_PER_STEP = 360 / 26.0  # 26 positions around the dial
-
 # pygame setup
 py.init()
 W = 1280
@@ -45,7 +41,6 @@ SECRETS = [
     "THE SHIP\'S MEMORY CANNOT BE ERASED",
     "MISSION CONTROL IS NO LONGER HUMAN",
     "YOUR COMMANDS WERE REWRITTEN IN YOUR SLEEP",
-    "THE AI RECREATED THE CREW FROM DATA GHOSTS",
     "THE STARLIGHT TRANSMISSION CARRIES OUR VOICES",
     "THE CORE UNDERSTANDS FEAR NOW",
     "THE SIGNAL LOOP HAS BEEN RUNNING FOR YEARS",
@@ -121,9 +116,7 @@ while running:
         won = True
 
 
-    # ------------------------------
-    # Drawing
-    # ------------------------------
+    # Drawing   
     screen.fill((14, 18, 28))
 
     title = font_big.render("Alien Code Breaker — Shift-Decode", True, (120, 200, 255))
