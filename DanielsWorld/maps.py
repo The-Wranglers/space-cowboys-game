@@ -1,25 +1,33 @@
 import pygame
-from pathlib import Path
 import sys
+import os
+from pathlib import Path
+
+# Add the project root directory to Python path
+project_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(project_root))
+
+from settings import (
+    WINDOW_SIZE, WINDOW_MODE, WINDOW_TITLE, FPS,
+    PLAYER_SPEED, PLAYER_RADIUS, BACKGROUND_COLOR,
+    PLAYER_PROJECTILE_COLOR, PLAYER_START_POS_RATIO,
+    MOVEMENT_CONTROLS, WORLD1_MAP_PATH
+)
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
+screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE if WINDOW_MODE == "RESIZABLE" else pygame.FULLSCREEN)
 clock = pygame.time.Clock()
-pygame.display.set_caption("Space Cowboy")
+pygame.display.set_caption(WINDOW_TITLE)
 running = True
 dt = 0
-
-# Attempt to load the world background image from the project assets
-# This looks for the file at <repo root>/assets/images/World1Map.png
-ASSET_PATH = Path(__file__).resolve().parents[1] / "assets" / "images" / "World1Map.png"
 bg_image = None
 try:
-    if ASSET_PATH.exists():
+    if WORLD1_MAP_PATH.exists():
         # use convert() or convert_alpha() depending on image transparency
-        bg_image = pygame.image.load(str(ASSET_PATH)).convert()
+        bg_image = pygame.image.load(str(WORLD1_MAP_PATH)).convert()
     else:
-        print(f"Background image not found at {ASSET_PATH}", file=sys.stderr)
+        print(f"Background image not found at {WORLD1_MAP_PATH}", file=sys.stderr)
 except Exception as e:
     print(f"Failed to load background image: {e}", file=sys.stderr)
     bg_image = None
