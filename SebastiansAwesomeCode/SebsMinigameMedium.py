@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+import sys
 
 class Node:
     def __init__(self, x, y, xSpeed, ySpeed):
@@ -49,7 +50,25 @@ screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 clock = pygame.time.Clock()
 running = True
 
+# Load player character images
+project_root = __file__.rsplit('SebastiansAwesomeCode', 1)[0]
+player_images = {}
+for direction in ['w', 'a', 's', 'd']:
+    try:
+        img_path = f"{project_root}assets/images/{direction}Capy.png"
+        player_images[direction] = pygame.image.load(img_path)
+    except Exception as e:
+        print(f"Failed to load player image {direction}Capy.png: {e}", file=sys.stderr)
+
+# Default player image (facing left)
+current_player_image = player_images.get('a')  # aCapy.png is the default
+if not current_player_image:  # Fallback if image loading failed
+    print("Failed to load default player image, using placeholder", file=sys.stderr)
+    current_player_image = pygame.Surface((100, 100))  # Create a placeholder surface
+    current_player_image.fill("brown")
+
 cowboy_pos = [screen.get_width() // 2, screen.get_height() // 2]
+player_rect = current_player_image.get_rect(center=cowboy_pos)
 stack = LinkedListStack()       # Player bullets
 enemy_stack = LinkedListStack() # Enemy bullets
 
@@ -89,16 +108,28 @@ while running:
                 dy = (dy / dist) * bulletSpeed
             stack.push(cowboy_pos[0], cowboy_pos[1], dx, dy)
 
-    # --- Player movement ---
+    # --- Player movement and image updates ---
     keys = pygame.key.get_pressed()
+    moved = False
     if keys[pygame.K_w]:
         cowboy_pos[1] -= speed * dt
+        current_player_image = player_images.get('w', current_player_image)
+        moved = True
     if keys[pygame.K_s]:
         cowboy_pos[1] += speed * dt
+        current_player_image = player_images.get('s', current_player_image)
+        moved = True
     if keys[pygame.K_a]:
         cowboy_pos[0] -= speed * dt
+        current_player_image = player_images.get('a', current_player_image)
+        moved = True
     if keys[pygame.K_d]:
         cowboy_pos[0] += speed * dt
+        current_player_image = player_images.get('d', current_player_image)
+        moved = True
+    
+    # Update player rectangle position
+    player_rect.center = cowboy_pos
 
     # --- Enemy AI (smart dodging + movement) ---
     dodge_x, dodge_y = 0, 0
@@ -199,7 +230,8 @@ while running:
 
     # --- Drawing ---
     screen.fill("white")
-    pygame.draw.circle(screen, "brown", cowboy_pos, 50)
+    # Draw player character using current image
+    screen.blit(current_player_image, player_rect)
     if target_alive:
         pygame.draw.circle(screen, "green", (int(Xtarget), int(Ytarget)), 50)
     else:
