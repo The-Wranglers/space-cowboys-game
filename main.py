@@ -16,7 +16,10 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
+        elif event.type == pygame.VIDEORESIZE:
+            # recreate the screen surface at the new size so get_width/height match
+            screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+    
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("black")
 

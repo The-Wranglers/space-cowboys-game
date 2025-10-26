@@ -15,7 +15,12 @@ class SpaceCowboyGame:
 
     def handle_events(self):
         """Handle user and system events."""
+        # poll for events
         for event in pygame.event.get():
+            if event.type == pygame.VIDEORESIZE:
+                # recreate the screen surface at the new size so get_width/height match
+                screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                self.render()  # re-render on resize
             if event.type == pygame.QUIT:
                 self.running = False
 
