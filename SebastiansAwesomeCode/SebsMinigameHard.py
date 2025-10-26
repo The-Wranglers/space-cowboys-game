@@ -43,7 +43,6 @@ class LinkedListStack:
             node.y += node.ySpeed * dt
             node = node.next
 
-
 pygame.init()
 screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 clock = pygame.time.Clock()
@@ -55,25 +54,26 @@ enemy_stack = LinkedListStack() # Enemy bullets
 
 bulletSpeed = 600
 enemyBulletSpeed = 400
-player_speed = 300
-enemy_speed = 150
+speed = 300
+target_speed = 120
 target_alive = True
 target_killed = False
 counter = 0
 shoot_cooldown = 0
 
-# Spawn first target (enemy)
+# Enemy     
 Xtarget = random.randint(100, screen.get_width() - 100)
 Ytarget = random.randint(100, screen.get_height() - 100)
 
-# Enemy dodge direction control
-dodge_timer = 0
-dodge_dx, dodge_dy = 0, 0
+# Enemy movement direction
+target_dir = [random.choice([-1, 1]), random.choice([-1, 1])]
+
+# Enemy radius
+ENEMY_RADIUS = 50
 
 while running:
     dt = clock.tick(60) / 1000
     shoot_cooldown += dt
-    dodge_timer += dt
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -93,55 +93,76 @@ while running:
     # Player movement
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
-        cowboy_pos[1] -= player_speed * dt
+        cowboy_pos[1] -= speed * dt
     if keys[pygame.K_s]:
-        cowboy_pos[1] += player_speed * dt
+        cowboy_pos[1] += speed * dt
     if keys[pygame.K_a]:
-        cowboy_pos[0] -= player_speed * dt
+        cowboy_pos[0] -= speed * dt
     if keys[pygame.K_d]:
-        cowboy_pos[0] += player_speed * dt
+        cowboy_pos[0] += speed * dt
 
-    # === Enemy Movement (Smart AI) ===
-    # Move toward the player
-    dx = cowboy_pos[0] - Xtarget
-    dy = cowboy_pos[1] - Ytarget
-    dist = math.sqrt(dx**2 + dy**2)
+    # Enemy movement (wanders and dodges player bullets)
+    Xtarget += target_dir[0] * target_speed * dt
+    Ytarget += target_dir[1] * target_speed * dt
 
-    if dist > 0:
-        dx /= dist
-        dy /= dist
+    # Keep enemy inside the screen
+    if Xtarget < ENEMY_RADIUS:
+        Xtarget = ENEMY_RADIUS
+        target_dir[0] = abs(target_dir[0])  # Bounce right
+    elif Xtarget > screen.get_width() - ENEMY_RADIUS:
+        Xtarget = screen.get_width() - ENEMY_RADIUS
+        target_dir[0] = -abs(target_dir[0])  # Bounce left
 
-    # Add dodge every 1.5 seconds
-    if dodge_timer > 1.5:
-        dodge_timer = 0
-        dodge_dx = random.uniform(-1, 1)
-        dodge_dy = random.uniform(-1, 1)
+    if Ytarget < ENEMY_RADIUS:
+        Ytarget = ENEMY_RADIUS
+        target_dir[1] = abs(target_dir[1])  # Bounce down
+    elif Ytarget > screen.get_height() - ENEMY_RADIUS:
+        Ytarget = screen.get_height() - ENEMY_RADIUS
+        target_dir[1] = -abs(target_dir[1])  # Bounce up
 
-    # Combine chase and dodge
-    move_x = dx + dodge_dx * 0.3
-    move_y = dy + dodge_dy * 0.3
-    move_dist = math.sqrt(move_x**2 + move_y**2)
-    if move_dist > 0:
-        move_x /= move_dist
-        move_y /= move_dist
+    # Occasionally change direction randomly
+    if random.random() < 0.01:
+        target_dir = [random.choice([-1, 0, 1]), random.choice([-1, 0, 1])]
 
-    # Update enemy position
-    Xtarget += move_x * enemy_speed * dt
-    Ytarget += move_y * enemy_speed * dt
+    # Dodge nearest bullet if too close
+    node = stack.top
+    while node:
+        dist = math.hypot(node.x - Xtarget, node.y - Ytarget)
+        if dist < 200:  # Dodge if bullet nearby
+            if node.x < Xtarget:
+                target_dir[0] = 1
+            else:
+                target_dir[0] = -1
+            if node.y < Ytarget:
+                target_dir[1] = 1
+            else:
+                target_dir[1] = -1
+        node = node.next
 
-    # Keep within screen
-    Xtarget = max(50, min(screen.get_width() - 50, Xtarget))
-    Ytarget = max(50, min(screen.get_height() - 50, Ytarget))
-
-    # AI shooting
-    if shoot_cooldown >= 1.0:  # Fire every second
+    # Enemy shooting logic — fires every 0.5 seconds
+    if shoot_cooldown >= 0.5:
+        # Predictive shot
         dx = cowboy_pos[0] - Xtarget
         dy = cowboy_pos[1] - Ytarget
+        player_speed_x = (keys[pygame.K_d] - keys[pygame.K_a]) * speed
+        player_speed_y = (keys[pygame.K_s] - keys[pygame.K_w]) * speed
+
+        predicted_x = cowboy_pos[0] + player_speed_x * 0.3
+        predicted_y = cowboy_pos[1] + player_speed_y * 0.3
+        dx = predicted_x - Xtarget
+        dy = predicted_y - Ytarget
         dist = math.sqrt(dx**2 + dy**2)
         if dist != 0:
             dx = (dx / dist) * enemyBulletSpeed
             dy = (dy / dist) * enemyBulletSpeed
         enemy_stack.push(Xtarget, Ytarget, dx, dy)
+
+        # Random bullet
+        angle = random.uniform(0, math.tau)
+        dx2 = math.cos(angle) * enemyBulletSpeed
+        dy2 = math.sin(angle) * enemyBulletSpeed
+        enemy_stack.push(Xtarget, Ytarget, dx2, dy2)
+
         shoot_cooldown = 0
 
     # Move bullets
@@ -153,7 +174,7 @@ while running:
     # Collision check (player bullets hit target)
     node = stack.top
     while node:
-        if math.hypot(node.x - Xtarget, node.y - Ytarget) < 50:
+        if math.hypot(node.x - Xtarget, node.y - Ytarget) < ENEMY_RADIUS:
             target_killed = True
             target_alive = False
         node = node.next
@@ -180,22 +201,17 @@ while running:
     screen.fill("white")
     pygame.draw.circle(screen, "brown", cowboy_pos, 50)
     if target_alive:
-        pygame.draw.circle(screen, "green", (int(Xtarget), int(Ytarget)), 50)
+        pygame.draw.circle(screen, "green", (int(Xtarget), int(Ytarget)), ENEMY_RADIUS)
     else:
-        pygame.draw.circle(screen, "red", (int(Xtarget), int(Ytarget)), 50)
-
-    # Player bullets
+        pygame.draw.circle(screen, "red", (int(Xtarget), int(Ytarget)), ENEMY_RADIUS)
     node = stack.top
     while node:
         pygame.draw.circle(screen, "yellow", (int(node.x), int(node.y)), 8)
         node = node.next
-
-    # Enemy bullets
     node = enemy_stack.top
     while node:
         pygame.draw.circle(screen, "red", (int(node.x), int(node.y)), 8)
         node = node.next
- 
     pygame.display.flip()
 
 pygame.quit()
