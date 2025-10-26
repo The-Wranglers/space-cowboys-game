@@ -4,77 +4,108 @@ from play_screen import PlayScreen
 
 
 class SpaceCowboyGame:
+    """
+    Game root. Handles window, loop, and which screen is active.
+    """
+
     def __init__(self, width=1280, height=720, title="Space Cowboy"):
         pygame.init()
 
+        # your window setup
         self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
         pygame.display.set_caption(title)
+
         self.clock = pygame.time.Clock()
         self.running = True
-        self.dt = 0
+        self.dt = 0.0  # delta time per frame in seconds
 
-        # --- screen state ---
+        # which screen are we currently showing
+        # valid states: "menu", "play", "sheriff_level"
         self.current_screen = "menu"
 
-        # create play screen now so it's ready
+        # create play/planet-select screen
         self.play_screen = PlayScreen(
-            bg_path="/Users/nerd/the-wranglers-game/space-cowboys-game/assets/images/Sherriff_station_boss_locked.png"
+            bg_path="./assets/images/Sherriff_station_boss_locked.png",
+            game_state_callback=self.change_screen  # <-- this is now valid
         )
 
-        # create menu and give it a callback to switch to play
+        # create main menu and inject callback to start playing
         self.main_menu = MainMenu(on_play=self.go_to_play)
 
+    # ---- state change helpers ----
+    def change_screen(self, new_state):
+        """
+        This lets other screens (like PlayScreen) tell the game
+        to switch to something else, e.g. 'sheriff_level'.
+        """
+        self.current_screen = new_state
+
     def go_to_play(self):
-        """Called when 'Play' is clicked."""
+        """Called when 'Play' is clicked in MainMenu."""
         self.current_screen = "play"
 
     def go_to_menu(self):
-        """Optional: you can call this later (ESC, etc.)."""
+        """Return to main menu."""
         self.current_screen = "menu"
 
+    # ---- event loop ----
     def handle_events(self):
-        """Handle user and system events."""
         for event in pygame.event.get():
-            if event.type == pygame.VIDEORESIZE:
-                # Recreate the display surface so new size is honored
-                self.screen = pygame.display.set_mode(
-                    (event.w, event.h), pygame.RESIZABLE
-                )
-                # no re-render call here; render() will run anyway this frame
-
             if event.type == pygame.QUIT:
                 self.running = False
 
-            # bonus: allow ESC to go back to menu from play
-            if event.type == pygame.KEYDOWN:
+            elif event.type == pygame.VIDEORESIZE:
+                # keep screen surface in sync with new window size
+                self.screen = pygame.display.set_mode(
+                    (event.w, event.h),
+                    pygame.RESIZABLE
+                )
+
+            elif event.type == pygame.KEYDOWN:
+                # ESC -> back to menu for now no matter what
                 if event.key == pygame.K_ESCAPE:
                     self.go_to_menu()
 
     def update(self):
-        """Future logic per-screen if you need it."""
-        # For now, nothing to update continuously.
+        # nothing animated yet; placeholder for future logic
         pass
 
     def render(self):
-        """Render the active screen."""
+        # draw based on current_screen value
         if self.current_screen == "menu":
-            # black background for menu
             self.screen.fill("black")
             self.main_menu.load_main_menu(self.screen)
 
         elif self.current_screen == "play":
-            # draw sheriff station + textbox
             self.play_screen.draw(self.screen)
+
+        elif self.current_screen == "sheriff_level":
+            # temporary placeholder until you build that screen
+            self.screen.fill((20, 0, 0))
+            debug_font = pygame.font.Font(None, 50)
+            debug_text = debug_font.render(
+                "Sheriff Level Loaded",
+                True,
+                (255, 255, 255)
+            )
+            rect = debug_text.get_rect(
+                center=(
+                    self.screen.get_width() / 2,
+                    self.screen.get_height() / 2
+                )
+            )
+            self.screen.blit(debug_text, rect)
 
         pygame.display.flip()
 
     def run(self):
-        """Main game loop."""
         while self.running:
             self.handle_events()
             self.update()
             self.render()
-            self.dt = self.clock.tick(60) / 1000  # delta time in seconds
+
+            # lock frame rate ~60 FPS, capture delta time
+            self.dt = self.clock.tick(60) / 1000.0
 
         pygame.quit()
 
